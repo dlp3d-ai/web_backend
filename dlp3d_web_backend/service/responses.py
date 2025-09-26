@@ -80,3 +80,31 @@ class GetAvailableProvidersResponse(BaseModel):
     """
     options: set[str]
 
+
+class MeshV1Response(BaseModel):
+    """Response model for mesh data.
+
+    This model is used for WebSocket responses containing
+    mesh data for avatars.
+    """
+    pass
+
+class VersionV1Response(BaseModel):
+    """Response model for version information.
+
+    This model is used for WebSocket responses containing
+    the current version of the motion file server.
+
+    Args:
+        version (str):
+            Version string of the motion file server.
+    """
+    version: str
+
+class MotionKeywordsV1Response(BaseModel):
+    """Response model for motion keywords.
+
+    This model is used for http responses containing
+    the motion keywords.
+    """
+    motion_keywords: set[str]

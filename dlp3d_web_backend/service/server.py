@@ -1,7 +1,10 @@
+import asyncio
 import json
 import os
 import time
+import traceback
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Any
 
@@ -12,12 +15,15 @@ from fastapi import (
     FastAPI,
     Request,
     Response,
+    WebSocket,
+    WebSocketDisconnect,
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pymongo import AsyncMongoClient, MongoClient
 
+from ..apis.builder import build_api
 from ..data_structures import CharacterConfig, UserConfig, UserCredential
 from ..utils.super import Super
 from .exceptions import (
@@ -35,11 +41,17 @@ from .exceptions import (
 )
 from .requests import (
     AuthenticateUserRequest,
+    BlendshapesMetaV1Request,
     CreateUserRequest,
     DeleteCharacterRequest,
     DeleteUserRequest,
     DuplicateCharacterRequest,
+    JointsMetaV1Request,
+    MeshV1Request,
+    MotionFileV1Request,
     RegisterUserRequest,
+    RestposeV1Request,
+    RigidsMetaV1Request,
     UpdateCharacterASRRequest,
     UpdateCharacterAvatarRequest,
     UpdateCharacterClassificationRequest,
@@ -60,9 +72,17 @@ from .responses import (
     GetCharacterConfigResponse,
     GetCharacterListResponse,
     ListUsersResponse,
+    MotionKeywordsV1Response,
     RegisterUserResponse,
 )
 
+try:
+    from ..data_structures.motion_file_v1 import ptoto_pb2 as motion_file_pb2
+    v1_pb2_imported = True
+    v1_pb2_traceback_str = None
+except ImportError:
+    v1_pb2_imported = False
+    v1_pb2_traceback_str = traceback.format_exc()
 
 class FastAPIServer(Super):
     """FastAPI server for handling HTTP requests and WebSocket connections.
@@ -77,6 +97,7 @@ class FastAPIServer(Super):
         mongodb_username: str,
         mongodb_password: str,
         default_character_config_paths: list[str],
+        motion_file_api_cfg: dict,
         mongodb_port: int = 27017,
         mongodb_database: str = 'web',
         mongodb_auth_database: str = 'admin',
@@ -84,6 +105,7 @@ class FastAPIServer(Super):
         mongodb_user_collection: str = 'UserConfigs',
         mongodb_character_collection: str = 'CharacterConfigs',
         default_user_config_path: str | None = None,
+        max_workers: int = 4,
         enable_cors: bool = False,
         host: str = '0.0.0.0',
         port: int = 80,
@@ -165,6 +187,10 @@ class FastAPIServer(Super):
         # for fastapi
         self.host = host
         self.port = port
+        self.max_workers = max_workers
+        self.executor = ThreadPoolExecutor(max_workers=max_workers)
+        self.motion_file_api_cfg = motion_file_api_cfg
+        self.motion_file_api = None
         # for tailing the log file
         log_path = None
         for logger_handler in self.logger.handlers:
@@ -183,6 +209,7 @@ class FastAPIServer(Super):
                 allow_methods=['*'],
                 allow_headers=['*'],
             )
+        self.app.add_event_handler('startup', self._build_motion_file_api)
         if startup_event_listener is not None:
             for listener in startup_event_listener:
                 self.app.add_event_handler('startup', listener)
@@ -191,6 +218,18 @@ class FastAPIServer(Super):
                 self.app.add_event_handler('shutdown', listener)
         register_error_handlers(self.app)
         self.asyncio_tasks = set()
+
+    async def _build_motion_file_api(self) -> None:
+        """Build Python API instance.
+
+        This method initializes the Python API with the configured
+        thread pool executor and logger settings.
+        """
+        motion_file_api_cfg = self.motion_file_api_cfg.copy()
+        motion_file_api_cfg['thread_pool_executor'] = self.executor
+        motion_file_api_cfg['logger_cfg'] = self.logger_cfg
+        motion_file_api = await build_api(motion_file_api_cfg)
+        self.motion_file_api = motion_file_api
 
     def _add_api_routes(self, router: APIRouter) -> None:
         """Add API routes to the router.
@@ -258,6 +297,12 @@ class FastAPIServer(Super):
             self.list_user_config_id,
             methods=["GET"],
             response_model=ListUsersResponse,
+        )
+        router.add_api_route(
+            "/motion_keywords",
+            self.motion_keywords,
+            methods=["GET"],
+            response_model=MotionKeywordsV1Response,
         )
         # POST routes
         router.add_api_route(
@@ -483,6 +528,11 @@ class FastAPIServer(Super):
                 },
                 **OPENAPI_RESPONSE_503
             },
+        )
+        # Websocket
+        router.add_api_websocket_route(
+            "/api/v1/motion_file_download",
+            endpoint=self.motion_file_download_v1_ws,
         )
 
     def run(self) -> None:
@@ -1568,6 +1618,215 @@ class FastAPIServer(Super):
             raise NoCharacterException(
                 status_code=404,
                 detail=msg)
+
+    async def motion_keywords(self) -> MotionKeywordsV1Response:
+        """Get motion keywords.
+
+        Returns:
+            MotionKeywordsV1Response:
+                Motion keywords response.
+        """
+        motion_keywords = await self.motion_file_api.get_motion_keywords()
+        return MotionKeywordsV1Response(motion_keywords=motion_keywords)
+
+    async def motion_file_download_v1_ws(
+        self,
+        websocket: WebSocket,
+    ) -> None:
+        """Handle WebSocket connection for motion file downloads.
+
+        This method processes various types of requests including version
+        information, restpose data, mesh data, meta data, and motion clips
+        through WebSocket protocol using protobuf serialization.
+
+        Args:
+            websocket (WebSocket):
+                WebSocket connection object.
+        """
+        await websocket.accept()
+        try:
+            loop = asyncio.get_event_loop()
+            while True:
+                pb_bytes = await websocket.receive_bytes()
+                pb_request = motion_file_pb2.MotionFileV1Request()
+                await loop.run_in_executor(
+                    self.executor,
+                    pb_request.ParseFromString,
+                    pb_bytes
+                )
+                if pb_request.class_name == 'VersionV1Request':
+                    version_str = await self.motion_file_api.cache.get_version()
+                    pb_response = motion_file_pb2.MotionFileV1Response()
+                    pb_response.class_name = 'VersionV1Response'
+                    pb_response.version = version_str
+                    pb_bytes = await loop.run_in_executor(
+                        self.executor,
+                        pb_response.SerializeToString
+                    )
+                    await websocket.send_bytes(pb_bytes)
+                elif pb_request.class_name == 'RestposeV1Request':
+                    request = RestposeV1Request(
+                        avatar=pb_request.avatar
+                    )
+                    restpose = await self.motion_file_api.get_restpose(request.avatar)
+                    pb_response = motion_file_pb2.MotionFileV1Response()
+                    pb_response.class_name = 'Restpose'
+                    pb_response.restpose_name = pb_request.avatar
+                    pb_response.joint_names.extend(restpose.joint_names)
+                    pb_response.parent_indices.extend(restpose.parent_indices)
+                    pb_response.local_matrices.dtype = \
+                        str(restpose.local_matrices.dtype)
+                    pb_response.local_matrices.shape.extend(
+                        list(restpose.local_matrices.shape))
+                    pb_response.local_matrices.data = \
+                        restpose.local_matrices.tobytes()
+                    pb_response.matrix_world.dtype = str(
+                        restpose.matrix_world.dtype)
+                    pb_response.matrix_world.shape.extend(
+                        list(restpose.matrix_world.shape))
+                    pb_response.matrix_world.data = restpose.matrix_world.tobytes()
+                    pb_bytes = await loop.run_in_executor(
+                        self.executor,
+                        pb_response.SerializeToString
+                    )
+                    await websocket.send_bytes(pb_bytes)
+                elif pb_request.class_name == 'MeshV1Request':
+                    request = MeshV1Request(
+                        avatar=pb_request.avatar
+                    )
+                    mesh_bytes = await self.motion_file_api.get_mesh(request.avatar)
+                    pb_response = motion_file_pb2.MotionFileV1Response()
+                    pb_response.class_name = 'MeshV1Response'
+                    pb_response.data = mesh_bytes
+                    pb_bytes = await loop.run_in_executor(
+                        self.executor,
+                        pb_response.SerializeToString
+                    )
+                    await websocket.send_bytes(pb_bytes)
+                elif pb_request.class_name == 'JointsMetaV1Request':
+                    request = JointsMetaV1Request(
+                        avatar=pb_request.avatar
+                    )
+                    joints_meta_bytes = await self.motion_file_api.get_joints_meta(
+                        request.avatar)
+                    pb_response = motion_file_pb2.MotionFileV1Response()
+                    pb_response.class_name = 'JointsMetaV1Response'
+                    pb_response.data = joints_meta_bytes
+                    pb_bytes = await loop.run_in_executor(
+                        self.executor,
+                        pb_response.SerializeToString
+                    )
+                    await websocket.send_bytes(pb_bytes)
+                elif pb_request.class_name == 'RigidsMetaV1Request':
+                    request = RigidsMetaV1Request(
+                        avatar=pb_request.avatar
+                    )
+                    rigids_meta_bytes = await self.motion_file_api.get_rigids_meta(
+                        request.avatar)
+                    pb_response = motion_file_pb2.MotionFileV1Response()
+                    pb_response.class_name = 'RigidsMetaV1Response'
+                    pb_response.data = rigids_meta_bytes
+                    pb_bytes = await loop.run_in_executor(
+                        self.executor,
+                        pb_response.SerializeToString
+                    )
+                    await websocket.send_bytes(pb_bytes)
+                elif pb_request.class_name == 'BlendshapesMetaV1Request':
+                    request = BlendshapesMetaV1Request(
+                        avatar=pb_request.avatar
+                    )
+                    blendshapes_meta_bytes = await \
+                        self.motion_file_api.get_blendshapes_meta(request.avatar)
+                    pb_response = motion_file_pb2.MotionFileV1Response()
+                    pb_response.class_name = 'BlendshapesMetaV1Response'
+                    pb_response.data = blendshapes_meta_bytes
+                    pb_bytes = await loop.run_in_executor(
+                        self.executor,
+                        pb_response.SerializeToString
+                    )
+                    await websocket.send_bytes(pb_bytes)
+                elif pb_request.class_name == 'MotionFileV1Request':
+                    app_name = pb_request.app_name \
+                        if len(pb_request.app_name) > 0 \
+                        else 'python_backend'
+                    request = MotionFileV1Request(
+                        avatar=pb_request.avatar,
+                        app_name=app_name
+                    )
+                    results = await self.motion_file_api.get_motion(
+                        request.avatar,
+                        request.app_name
+                    )
+                    for meta_dict, motion_clip in results:
+                        pb_response = motion_file_pb2.MotionFileV1Response()
+                        pb_response.class_name = 'MotionClip'
+                        pb_response.restpose_name = request.avatar
+                        pb_response.joint_names.extend(motion_clip.joint_names)
+                        pb_response.motion_record_id = meta_dict['motion_record_id']
+                        pb_response.is_idle_long = meta_dict['is_idle_long']
+                        if isinstance(meta_dict["states"], str):
+                            msg = 'meta_dict["states"] is a string, expecting list[str]'
+                            self.logger.warning(msg)
+                            states_list = meta_dict["states"].split(',')
+                        else:
+                            states_list = meta_dict["states"]
+                        pb_response.states.extend(states_list)
+                        for frame in motion_clip.cutoff_frames:
+                            pb_frame = motion_file_pb2.CutoffFrame()
+                            pb_frame.frame_idx = frame[0]
+                            pb_frame.left_priority = frame[1]
+                            pb_frame.right_priority = frame[2]
+                            pb_response.cutoff_frames.append(pb_frame)
+                        if motion_clip.cutoff_ranges is not None and \
+                                len(motion_clip.cutoff_ranges) > 0:
+                            for range in motion_clip.cutoff_ranges:
+                                cutoff_range = motion_file_pb2.CutoffRange()
+                                cutoff_range.start_frame_idx = range[0]
+                                cutoff_range.end_frame_idx = range[1]
+                                cutoff_range.left_priority = range[2]
+                                cutoff_range.right_priority = range[3]
+                                pb_response.cutoff_ranges.append(cutoff_range)
+                        pb_response.joint_rotmat.dtype = str(
+                            motion_clip.joint_rotmat.dtype)
+                        pb_response.joint_rotmat.shape.extend(
+                            list(motion_clip.joint_rotmat.shape))
+                        pb_response.joint_rotmat.data = \
+                            motion_clip.joint_rotmat.tobytes()
+                        pb_response.root_world_position.dtype = str(
+                            motion_clip.root_world_position.dtype)
+                        pb_response.root_world_position.shape.extend(
+                            list(motion_clip.root_world_position.shape))
+                        pb_response.root_world_position.data = \
+                            motion_clip.root_world_position.tobytes()
+                        if 'loopable' in meta_dict:
+                            pb_response.loop_start_frame = \
+                                meta_dict['loopable']['loop_start_frame']
+                            pb_response.loop_end_frame = \
+                                meta_dict['loopable']['loop_end_frame']
+                        pb_bytes = await loop.run_in_executor(
+                            self.executor,
+                            pb_response.SerializeToString
+                        )
+                        await websocket.send_bytes(pb_bytes)
+                    pb_response = motion_file_pb2.MotionFileV1Response()
+                    pb_response.class_name = 'MotionFileEndV1Response'
+                    pb_bytes = await loop.run_in_executor(
+                        self.executor,
+                        pb_response.SerializeToString
+                    )
+                    await websocket.send_bytes(pb_bytes)
+                else:
+                    msg = ('Expected VersionV1Request, RestposeV1Request, '
+                           'MeshV1Request, JointsMetaV1Request, RigidsMetaV1Request, '
+                           'BlendshapesMetaV1Request, or MotionFileV1Request, '
+                           f'but received class_name: {pb_request.class_name}')
+                    self.logger.error(msg)
+                    await websocket.close(code=1008, reason=msg)
+                    return
+        except WebSocketDisconnect:
+            msg = "Connection disconnected by user."
+            self.logger.info(msg)
+
 
     def root(self) -> RedirectResponse:
         """Redirect to API documentation.

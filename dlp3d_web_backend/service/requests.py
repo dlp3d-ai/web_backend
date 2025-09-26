@@ -222,3 +222,87 @@ class UpdateUserConfigRequest(BaseModel):
     sense_tts_api_key: str | None = None
     nova_tts_api_key: str | None = None
     elevenlabs_api_key: str | None = None
+
+
+class VersionV1Request(BaseModel):
+    """Request model for getting motion file version information.
+
+    This model is used for WebSocket requests to retrieve the current
+    version of the motion file server.
+    """
+    pass
+
+class RestposeV1Request(BaseModel):
+    """Request model for getting restpose data.
+
+    This model is used for WebSocket requests to retrieve restpose
+    information for a specific avatar.
+
+    Args:
+        avatar (str):
+            Name of the avatar to get restpose data for.
+    """
+    avatar: str
+
+class MeshV1Request(BaseModel):
+    """Request model for getting mesh data.
+
+    This model is used for WebSocket requests to retrieve mesh
+    data for a specific avatar.
+
+    Args:
+        avatar (str):
+            Name of the avatar to get mesh data for.
+    """
+    avatar: str
+
+class JointsMetaV1Request(BaseModel):
+    """Request model for getting joints meta data.
+
+    This model is used for WebSocket requests to retrieve joints
+    metadata for a specific avatar.
+
+    Args:
+        avatar (str):
+            Name of the avatar to get joints metadata for.
+    """
+    avatar: str
+
+class RigidsMetaV1Request(BaseModel):
+    """Request model for getting rigids meta data.
+
+    This model is used for WebSocket requests to retrieve rigids
+    metadata for a specific avatar.
+
+    Args:
+        avatar (str):
+            Name of the avatar to get rigids metadata for.
+    """
+    avatar: str
+
+class BlendshapesMetaV1Request(BaseModel):
+    """Request model for getting blendshapes meta data.
+
+    This model is used for WebSocket requests to retrieve blendshapes
+    metadata for a specific avatar.
+
+    Args:
+        avatar (str):
+            Name of the avatar to get blendshapes metadata for.
+    """
+    avatar: str
+
+class MotionFileV1Request(BaseModel):
+    """Request model for getting motion file data.
+
+    This model is used for WebSocket requests to retrieve motion
+    file data for a specific avatar and application.
+
+    Args:
+        avatar (str):
+            Name of the avatar to get motion data for.
+        app_name (str):
+            Target application name for the motion data.
+    """
+    avatar: str
+    app_name: str

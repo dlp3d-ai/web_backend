@@ -34,8 +34,14 @@ def main(args) -> int:
     mongodb_port = startup_config['mongodb_port']
     mongodb_database = startup_config['mongodb_database']
     mongodb_auth_database = startup_config['mongodb_auth_database']
-    admin_usename = os.environ.get('MONGODB_ADMIN_USERNAME', 'admin')
-    admin_password = os.environ.get('MONGODB_ADMIN_PASSWORD', '')
+    if args.mongodb_admin_username is None:
+        admin_usename = os.environ.get('MONGODB_ADMIN_USERNAME', 'admin')
+    else:
+        admin_usename = args.mongodb_admin_username
+    if args.mongodb_admin_password is None:
+        admin_password = os.environ.get('MONGODB_ADMIN_PASSWORD', '')
+    else:
+        admin_password = args.mongodb_admin_password
     logger_cfg = startup_config['logger_cfg'].copy()
     logger_cfg['logger_name'] = 'main'
     logger = setup_logger(**logger_cfg)
@@ -238,6 +244,24 @@ def setup_parser():
         'The config file should be a Python module that ' +
         'exports a dictionary with server parameters.',
         default='configs/local.py')
+    parser.add_argument(
+        '--mongodb_admin_username',
+        type=str,
+        required=False,
+        default=None,
+        help='MongoDB admin username for database setup operations. ' +
+        'If not provided, will use MONGODB_ADMIN_USERNAME environment variable ' +
+        'or default to "admin". This is used for creating databases and users ' +
+        'when the target user does not have sufficient permissions.')
+    parser.add_argument(
+        '--mongodb_admin_password',
+        type=str,
+        required=False,
+        default=None,
+        help='MongoDB admin password for database setup operations. ' +
+        'If not provided, will use MONGODB_ADMIN_PASSWORD environment variable ' +
+        'or default to empty string. This is used for creating databases and users ' +
+        'when the target user does not have sufficient permissions.')
     args = parser.parse_args()
     return args
 
