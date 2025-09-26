@@ -1,0 +1,40 @@
+[project]
+name = "dlp3d_web_backend"
+version = "2.0.0"
+description = "Backend service for DLP3D webpage."
+authors = [{ name = "LazyBusyYang", email = "gaoyang_cn@outlook.com" }]
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "fastapi==0.115.8",
+    "python-multipart",
+    "uvicorn",
+    "jinja2",
+    "cryptography",
+    "boto3",
+    "watchtower",
+    "pymongo",
+    "pytz"
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "pre-commit",
+    "toml-to-requirements"
+]
+
+[project.urls]
+repository = "https://github.com/dlp3d-ai/web_backend"
+
+[build-system]
+requires = ["setuptools>=45", "setuptools-scm", "setuptools-protobuf"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["dlp3d_web_backend"]
+
+[tool.setuptools_scm]
+
+[tool.pytest]
+asyncio_default_fixture_loop_scope = "function"
