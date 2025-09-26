@@ -18,6 +18,11 @@ This document provides step-by-step instructions for setting up the DLP3D Web Ba
   - [Step 3: Install the Project](#step-3-install-the-project-1)
   - [Step 4: Verify Installation](#step-4-verify-installation-1)
   - [Environment Activation](#environment-activation-1)
+- [MongoDB Installation](#mongodb-installation)
+  - [Prerequisites](#prerequisites-2)
+  - [Installation Instructions](#installation-instructions)
+  - [Post-Installation Setup](#post-installation-setup)
+  - [Important Notes](#important-notes)
 
 ## Linux Environment Setup
 
@@ -214,4 +219,51 @@ conda activate web
 # Your terminal prompt should now show (web)
 # You can now run Python scripts and use the dlp3d_web_backend package
 ```
+
+## MongoDB Installation
+
+The DLP3D Web Backend service depends on MongoDB for data storage and management. You need to install and configure MongoDB before running the backend service.
+
+### Prerequisites
+
+- MongoDB Community Edition (recommended for development)
+- MongoDB server must be running and accessible on your system
+
+### Installation Instructions
+
+Please follow the official MongoDB installation guide for your operating system:
+
+📖 **[MongoDB Community Edition Installation Guide](https://www.mongodb.com/docs/manual/installation/)**
+
+The official guide provides detailed installation instructions for:
+- **Linux**: Ubuntu, RHEL/CentOS, Debian, Amazon Linux, and other distributions
+- **Windows**: Windows 10/11 and Windows Server
+- **macOS**: Intel and Apple Silicon (ARM64) architectures
+
+### Post-Installation Setup
+
+After installing MongoDB, ensure the following:
+
+1. **Start MongoDB Service:**
+   - **Linux/macOS**: `sudo systemctl start mongod` or `brew services start mongodb-community`
+   - **Windows**: MongoDB should start automatically as a Windows service
+
+2. **Verify MongoDB is Running:**
+   ```bash
+   # Connect to MongoDB shell
+   mongosh
+   
+   # Or using legacy mongo command
+   mongo
+   ```
+
+3. **Configure MongoDB for DLP3D Web Backend:**
+   - The backend service will automatically create the necessary database and user on first run
+   - Ensure MongoDB is accessible on the default port (27017) or configure accordingly in your environment variables
+
+### Important Notes
+
+- **Data Directory**: MongoDB will create its data directory automatically. Ensure sufficient disk space is available
+- **Firewall**: Make sure MongoDB port (default 27017) is accessible if running on a remote server
+
 
