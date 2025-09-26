@@ -299,7 +299,7 @@ class FastAPIServer(Super):
             response_model=ListUsersResponse,
         )
         router.add_api_route(
-            "/motion_keywords",
+            "/api/v1/motion_keywords",
             self.motion_keywords,
             methods=["GET"],
             response_model=MotionKeywordsV1Response,
