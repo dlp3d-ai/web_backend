@@ -75,4 +75,4 @@ ENV MONGODB_DATABASE=web_database
 ENV MONGODB_AUTH_DATABASE=web_database
 
 # Set entrypoint
-ENTRYPOINT ["/opt/venv/bin/python", "main.py --config_path configs/docker.py"]
+ENTRYPOINT ["/opt/venv/bin/python", "main.py", "--config_path", "configs/docker.py"]
