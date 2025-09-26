@@ -4,7 +4,7 @@ FROM registry.sensetime.com/zoetrope/library/ubuntu:20.04
 RUN apt-get update && \
     apt-get install -y \
         wget curl git vim \
-        make \
+        make unzip \
     && \
     apt-get autoclean
 
@@ -34,6 +34,15 @@ RUN python3.10 -m venv /opt/venv && \
     /opt/venv/bin/pip install --upgrade pip setuptools wheel && \
     /opt/venv/bin/pip cache purge
 
+# Download protoc
+RUN mkdir -p /opt/protoc && cd /opt/protoc && \
+    curl -LjO https://github.com/protocolbuffers/protobuf/releases/download/v31.1/protoc-31.1-linux-x86_64.zip \
+    && unzip protoc-31.1-linux-x86_64.zip \
+    && rm -f protoc-31.1-linux-x86_64.zip \
+    && chmod +x bin/protoc && \
+    ln -s /opt/protoc/bin/protoc /usr/bin/protoc && \
+    protoc --version
+
 # Update PATH to use virtual environment
 ENV PATH="/opt/venv/bin:$PATH"
 
@@ -55,9 +64,15 @@ RUN cd /workspace/web-backend && \
 # Set working directory
 WORKDIR /workspace/web-backend
 
-# Set environment variables for MongoDB admin credentials
+# Set environment variables for MongoDB
+ENV MONGODB_HOST=mongodb
+ENV MONGODB_PORT=27017
 ENV MONGODB_ADMIN_USERNAME=admin
 ENV MONGODB_ADMIN_PASSWORD=
+ENV MONGODB_USERNAME=web_user
+ENV MONGODB_PASSWORD=web_password
+ENV MONGODB_DATABASE=web_database
+ENV MONGODB_AUTH_DATABASE=web_database
 
 # Set entrypoint
-ENTRYPOINT ["/opt/venv/bin/python", "main.py"]
+ENTRYPOINT ["/opt/venv/bin/python", "main.py --config_path configs/docker.py"]

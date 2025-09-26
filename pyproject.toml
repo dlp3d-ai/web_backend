@@ -6,15 +6,27 @@ authors = [{ name = "LazyBusyYang", email = "gaoyang_cn@outlook.com" }]
 readme = "README.md"
 requires-python = ">=3.10,<3.13"
 dependencies = [
+    # Web framework and server
     "fastapi==0.115.8",
-    "python-multipart",
     "uvicorn",
-    "jinja2",
+    "python-multipart",
+    "websockets",
+    "jinja2",    
+    # Database drivers
+    "pymongo",
+    "aiomysql", 
+    "aiosqlite",    
+    # Data processing and utilities
+    "numpy",
+    "pytz",
     "cryptography",
+    # Serialization and protocols
+    "protobuf==6.31.1",
+    "setuptools-protobuf",    
+    # Cloud services and storage
     "boto3",
     "watchtower",
-    "pymongo",
-    "pytz"
+    "minio"
 ]
 
 [project.optional-dependencies]
@@ -38,3 +50,7 @@ packages = ["dlp3d_web_backend"]
 
 [tool.pytest]
 asyncio_default_fixture_loop_scope = "function"
+
+[tool.setuptools-protobuf]
+# protoc --python_out=. dlp3d_web_backend/data_structures/motion_file_v1.ptoto
+protobufs = ["dlp3d_web_backend/data_structures/motion_file_v1.ptoto"]
