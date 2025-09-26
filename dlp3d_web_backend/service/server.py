@@ -378,6 +378,17 @@ class FastAPIServer(Super):
             },
         )
         router.add_api_route(
+            "/api/v1/update_character_avatar",
+            self.update_character_avatar,
+            methods=["POST"],
+            responses={
+                200: {
+                    "description": "Success"
+                },
+                **OPENAPI_RESPONSE_404
+            },
+        )
+        router.add_api_route(
             "/api/v1/update_character_scene",
             self.update_character_scene,
             methods=["POST"],
