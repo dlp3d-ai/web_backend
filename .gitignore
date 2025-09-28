@@ -214,6 +214,8 @@ pyrightconfig.json
 input/
 output/
 data/
+motion_data/
+weights/
 # zip/tar
 *.zip
 *.tar

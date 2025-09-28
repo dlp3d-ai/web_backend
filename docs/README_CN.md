@@ -11,6 +11,7 @@
 - [API 文档](#api-文档)
 - [配置说明](#配置说明)
 - [开发指南](#开发指南)
+- [许可证](#许可证)
 
 ## 概述
 
@@ -47,16 +48,36 @@ DLP3D Web Backend 采用模块化、分层架构。
 
 ### 下载动作数据库
 
-1. **下载动作数据文件：**
-   - **Google Drive 下载：** [motion_data.zip](https://drive.google.com/file/d/112pnjuIuNqADS-fAT6RUIAVPtb3VlWlq/view?usp=drive_link)
-   - **百度网盘：** [motion_data.zip](https://pan.baidu.com/s/1YJSuLaoDKKV7JuE0Ws89zA)（提取码：`g64i`）
+**Web Backend 服务必需**
 
-2. **解压并整理数据：**
-   - 将下载的文件解压到项目根目录
+要使用 DLP3D Web Backend 服务，您需要下载动作数据库：
+
+- **Google Drive 下载：** [motion_data.zip](https://drive.google.com/file/d/112pnjuIuNqADS-fAT6RUIAVPtb3VlWlq/view?usp=drive_link)
+- **百度网盘：** [motion_data.zip](https://pan.baidu.com/s/1YJSuLaoDKKV7JuE0Ws89zA)（提取码：`g64i`）
+
+### 下载 Audio2Face 模型文件
+
+**完整 DLP3D Web 应用必需**
+
+要实现完整的 DLP3D Web 应用功能，您还需要下载 Audio2Face 模型文件：
+
+- **GitHub 下载：** [unitalker_v0.4.0_base.onnx](https://github.com/LazyBusyYang/CatStream/releases/download/a2f_cicd_files/unitalker_v0.4.0_base.onnx)
+- **Google Drive 下载：** [unitalker_v0.4.0_base.onnx](https://drive.google.com/file/d/1E0NTrsh4mciRPb265n64Dd5vR3Sa7Dgx/view?usp=drive_link)
+- **百度网盘：** [unitalker_v0.4.0_base.onnx](https://pan.baidu.com/s/1A_vUj_ZBMFPbO1lgUYVCPA)（提取码：`shre`）
+
+> **注意**：Audio2Face 模型仅在运行完整的 DLP3D Web 应用时才需要。对于独立的 Web Backend 服务，只需要动作数据库。
+
+### 整理数据
+
+**Web Backend 服务（必需）：**
+
+1. **解压动作数据库：**
+   - 如果项目根目录中不存在 `data` 目录，请创建一个
+   - 将下载的 `motion_data.zip` 文件解压到 `data` 目录中
    - 确保创建以下目录结构：
 
 ```
-├─configs
+├─docker-compose.yml
 ├─data
 │   ├─motion_database.db
 │   ├─blendshapes_meta
@@ -69,8 +90,22 @@ DLP3D Web Backend 采用模块化、分层架构。
 └─docs
 ```
 
+**完整 DLP3D Web 应用（可选）：**
+
+2. **整理 Audio2Face 模型：**
+   - 如果项目根目录中不存在 `weights` 目录，请创建一个
+   - 将下载的 `unitalker_v0.4.0_base.onnx` 文件放置在 `weights` 目录中
+
+```
+├─weights
+│   └─unitalker_v0.4.0_base.onnx
+├─dlp3d_web_backend
+└─docs
+```
+
 ### 目录结构说明
 
+**Web Backend 服务：**
 - `data/`：包含动作相关数据文件的目录。
   - `motion_database.db`：包含动作数据标注的 SQLite 数据库。
   - `blendshapes_meta/`：用于 blendshapes 元数据文件的目录。
@@ -79,37 +114,46 @@ DLP3D Web Backend 采用模块化、分层架构。
   - `motion_files/`：包含动作动画文件的目录。
   - `restpose_npz/`：用于 NPZ 格式静止姿态数据的目录。
   - `rigids_meta/`：用于刚体元数据文件的目录。
-- `data` 目录将挂载到 Docker 容器的 `/workspace/web-backend/data`
+- `weights/`：用于存储 ONNX 模型文件的目录。
+  - `unitalker_v0.4.0_base.onnx`：用于音频转面部生成的主要 ONNX 模型文件。
 
 ## 快速开始
 
-### 使用 Docker
+### 完整的 DLP3D 后端服务
 
-使用预构建的 Docker 镜像是开始使用 Web 后端的最简单方法：
+完成上述数据准备步骤后，您可以使用单个命令启动所有 DLP3D 后端服务：
 
-**Linux/macOS：**
 ```bash
-# 拉取并运行预构建镜像
-docker run -it \
-  -p 18080:18080 \
-  -v $(pwd)/data:/workspace/web-backend/data \
-  -e MONGODB_HOST=your_mongodb_host \
-  -e MONGODB_PORT=27017 \
-  -e MONGODB_ADMIN_USERNAME=admin \
-  -e MONGODB_ADMIN_PASSWORD=your_admin_password \
-  dockersenseyang/dlp3d_web_backend:latest
+# 启动所有后端服务
+docker compose up
 ```
+
+这将启动完整的 DLP3D 后端基础设施，包括：
+
+- **MongoDB 数据库服务** - 数据存储和管理
+- **Web Backend 服务** - RESTful API 服务器（端口 18080）
+- **Orchestrator 服务** - 流式对话和动画生成（端口 18081）
+- **Speech2Motion 服务** - 从语音生成动作动画
+- **Audio2Face 服务** - 从音频生成面部动画
+
+**前端连接：**
+一旦所有服务运行，您的前端应用程序只需要连接到：
+- **Backend API**：`http://localhost:18080`（Web Backend 服务）
+- **Orchestrator API**：`http://localhost:18081`（Orchestrator 服务）
+
+### 使用 Docker（独立 Web Backend 服务）
+
+要仅使用 Docker 运行 Web Backend 服务，您需要预先配置的 MongoDB 服务器单独运行：
 
 **Windows：**
 ```cmd
-# 拉取并运行预构建镜像
+# 仅运行 Web Backend 服务
 docker run -it -p 18080:18080 -v .\data:/workspace/web-backend/data -e MONGODB_HOST=your_mongodb_host -e MONGODB_PORT=27017 -e MONGODB_ADMIN_USERNAME=admin -e MONGODB_ADMIN_PASSWORD=your_admin_password dockersenseyang/dlp3d_web_backend:latest
 ```
 
 **命令说明：**
 - `-p 18080:18080`：将容器的端口 18080 映射到主机端口 18080
-- `-v $(pwd)/data:/workspace/web-backend/data`（Linux/macOS）：将本地 `data` 目录挂载到容器的数据目录
-- `-v .\data:/workspace/web-backend/data`（Windows）：将本地 `data` 目录挂载到容器的数据目录
+- `-v .\data:/workspace/web-backend/data`：将本地 `data` 目录挂载到容器的数据目录
 - `-e MONGODB_HOST=your_mongodb_host`：设置 MongoDB 服务器主机名
 - `-e MONGODB_PORT=27017`：设置 MongoDB 服务器端口（默认：27017）
 - `-e MONGODB_ADMIN_USERNAME=admin`：设置 MongoDB 管理员用户名
@@ -117,32 +161,15 @@ docker run -it -p 18080:18080 -v .\data:/workspace/web-backend/data -e MONGODB_H
 - `dockersenseyang/dlp3d_web_backend:latest`：使用预构建的公共镜像
 
 **前置条件：**
-- 确保项目根目录中有 `data` 目录
+- 确保项目根目录中有包含动作数据库文件的 `data` 目录
 - 确保系统已安装并运行 Docker
-- **MongoDB 服务器必须正在运行并可访问**，使用提供的连接参数
-- 后端服务将自动在 MongoDB 服务器中创建必要的数据库
+- **MongoDB 服务器必须已经运行并可访问**，使用提供的连接参数
+- 后端服务将在现有 MongoDB 服务器中自动创建必要的数据库
 
 **替代方案：从源码构建**
 
 如果您希望从源码构建镜像：
 
-**Linux/macOS：**
-```bash
-# 构建 Docker 镜像
-docker build -t web-backend:local .
-
-# 运行容器
-docker run -it \
-  -p 18080:18080 \
-  -v $(pwd)/data:/workspace/web-backend/data \
-  -e MONGODB_HOST=your_mongodb_host \
-  -e MONGODB_PORT=27017 \
-  -e MONGODB_ADMIN_USERNAME=admin \
-  -e MONGODB_ADMIN_PASSWORD=your_admin_password \
-  web-backend:local
-```
-
-**Windows：**
 ```cmd
 # 构建 Docker 镜像
 docker build -t web-backend:local .
@@ -300,4 +327,9 @@ python main.py --config_path configs/local.py
 - **类型提示**：完整的类型注解支持
 - **CI/CD**：自动化测试和部署管道
 
+## 许可证
+
+本项目采用MIT许可证。详情请参见[LICENSE](LICENSE)文件。
+
+MIT许可证是一个宽松的自由软件许可证，允许您使用、复制、修改、合并、发布、分发、再许可和/或销售软件副本，限制很少。唯一的要求是在所有副本或软件的重要部分中必须包含原始版权声明和许可证文本。
 ---

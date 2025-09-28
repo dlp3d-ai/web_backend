@@ -11,6 +11,7 @@
 - [API Documentation](#api-documentation)
 - [Configuration](#configuration)
 - [Development](#development)
+- [License](#license)
 
 ## Overview
 
@@ -47,16 +48,36 @@ To use DLP3d web backend service, you need to download the offline motion databa
 
 ### Download Motion Database
 
-1. **Download the motion data file:**
-   - **Google Drive Download:** [motion_data.zip](https://drive.google.com/file/d/112pnjuIuNqADS-fAT6RUIAVPtb3VlWlq/view?usp=drive_link)
-   - **Baidu Cloud：** [motion_data.zip](https://pan.baidu.com/s/1YJSuLaoDKKV7JuE0Ws89zA)（Share Code：`g64i`）
+**Required for Web Backend Service**
 
-2. **Extract and organize the data:**
-   - Extract the downloaded file to your project root directory
+To use the DLP3D Web Backend service, you need to download the motion database:
+
+- **Google Drive Download:** [motion_data.zip](https://drive.google.com/file/d/112pnjuIuNqADS-fAT6RUIAVPtb3VlWlq/view?usp=drive_link)
+- **Baidu Cloud：** [motion_data.zip](https://pan.baidu.com/s/1YJSuLaoDKKV7JuE0Ws89zA)（Share Code：`g64i`）
+
+### Download Audio2Face Model File
+
+**Required for Complete DLP3D Web Application**
+
+For the full DLP3D web application functionality, you need to download the Audio2Face model file:
+
+- **GitHub Download:** [unitalker_v0.4.0_base.onnx](https://github.com/LazyBusyYang/CatStream/releases/download/a2f_cicd_files/unitalker_v0.4.0_base.onnx)
+- **Google Drive Download:** [unitalker_v0.4.0_base.onnx](https://drive.google.com/file/d/1E0NTrsh4mciRPb265n64Dd5vR3Sa7Dgx/view?usp=drive_link)
+- **Baidu Cloud：** [unitalker_v0.4.0_base.onnx](https://pan.baidu.com/s/1A_vUj_ZBMFPbO1lgUYVCPA)（Share Code：`shre`）
+
+> **Note**: The Audio2Face model is only required when running the complete DLP3D web application. For standalone web backend service, only the motion database is necessary.
+
+### Organize the data
+
+**For Web Backend Service (Required):**
+
+1. **Extract motion database:**
+   - Create a `data` directory in your project root if it doesn't exist
+   - Extract the downloaded `motion_data.zip` file into the `data` directory
    - Ensure the following directory structure is created:
 
 ```
-├─configs
+├─docker-compose.yml
 ├─data
 │   ├─motion_database.db
 │   ├─blendshapes_meta
@@ -69,8 +90,22 @@ To use DLP3d web backend service, you need to download the offline motion databa
 └─docs
 ```
 
+**For Complete DLP3D Web Application (Optional):**
+
+2. **Organize Audio2Face model:**
+   - Create a `weights` directory in your project root if it doesn't exist
+   - Place the downloaded `unitalker_v0.4.0_base.onnx` file in the `weights` directory
+
+```
+├─weights
+│   └─unitalker_v0.4.0_base.onnx
+├─dlp3d_web_backend
+└─docs
+```
+
 ### Directory Structure Explanation
 
+**For Web Backend Service:**
 - `data/`: Directory containing motion-related data files.
   - `motion_database.db`: SQLite database containing motion metadata.
   - `blendshapes_meta/`: Directory for blendshapes metadata files.
@@ -79,37 +114,46 @@ To use DLP3d web backend service, you need to download the offline motion databa
   - `motion_files/`: Directory containing motion animation files.
   - `restpose_npz/`: Directory for rest pose data in NPZ format.
   - `rigids_meta/`: Directory for rigid body metadata files.
-- The `data` directory will be mounted to the Docker container at `/workspace/web-backend/data`
+- `weights/`: Directory for storing ONNX model files.
+  - `unitalker_v0.4.0_base.onnx`: The main ONNX model file for audio-to-face generation.
 
 ## Quick Start
 
-### Using Docker
+### Complete DLP3D Backend Services
 
-The easiest way to get started with web backend is using the pre-built Docker image:
+After completing the data preparation steps above, you can start all DLP3D backend services with a single command:
 
-**Linux/macOS:**
 ```bash
-# Pull and run the pre-built image
-docker run -it \
-  -p 18080:18080 \
-  -v $(pwd)/data:/workspace/web-backend/data \
-  -e MONGODB_HOST=your_mongodb_host \
-  -e MONGODB_PORT=27017 \
-  -e MONGODB_ADMIN_USERNAME=admin \
-  -e MONGODB_ADMIN_PASSWORD=your_admin_password \
-  dockersenseyang/dlp3d_web_backend:latest
+# Start all backend services
+docker compose up
 ```
+
+This will start the complete DLP3D backend infrastructure including:
+
+- **MongoDB Database Service** - Data storage and management
+- **Web Backend Service** - RESTful API server (port 18080)
+- **Orchestrator Service** - Streaming conversation and animation generation (port 18081)
+- **Speech2Motion Service** - Motion animation generation from speech
+- **Audio2Face Service** - Facial animation generation from audio
+
+**Frontend Connection:**
+Once all services are running, your frontend application only needs to connect to:
+- **Backend API**: `http://localhost:18080` (Web Backend Service)
+- **Orchestrator API**: `http://localhost:18081` (Orchestrator Service)
+
+### Using Docker (Standalone Web Backend Service)
+
+To run only the Web Backend service using Docker, you need a pre-configured MongoDB server running separately:
 
 **Windows:**
 ```cmd
-# Pull and run the pre-built image
+# Run the Web Backend service only
 docker run -it -p 18080:18080 -v .\data:/workspace/web-backend/data -e MONGODB_HOST=your_mongodb_host -e MONGODB_PORT=27017 -e MONGODB_ADMIN_USERNAME=admin -e MONGODB_ADMIN_PASSWORD=your_admin_password dockersenseyang/dlp3d_web_backend:latest
 ```
 
 **Command Explanation:**
 - `-p 18080:18080`: Maps the container's port 18080 to your host machine's port 18080
-- `-v $(pwd)/data:/workspace/web-backend/data` (Linux/macOS): Mounts your local `data` directory to the container's data directory
-- `-v .\data:/workspace/web-backend/data` (Windows): Mounts your local `data` directory to the container's data directory
+- `-v .\data:/workspace/web-backend/data`: Mounts your local `data` directory to the container's data directory
 - `-e MONGODB_HOST=your_mongodb_host`: Sets the MongoDB server hostname
 - `-e MONGODB_PORT=27017`: Sets the MongoDB server port (default: 27017)
 - `-e MONGODB_ADMIN_USERNAME=admin`: Sets the MongoDB admin username
@@ -117,32 +161,15 @@ docker run -it -p 18080:18080 -v .\data:/workspace/web-backend/data -e MONGODB_H
 - `dockersenseyang/dlp3d_web_backend:latest`: Uses the pre-built public image
 
 **Prerequisites:**
-- Ensure you have a `data` directory in your project root
+- Ensure you have a `data` directory in your project root with motion database files
 - Make sure Docker is installed and running on your system
-- **MongoDB server must be running and accessible** with the provided connection parameters
-- The backend service will automatically create necessary databases in the MongoDB server
+- **MongoDB server must be already running and accessible** with the provided connection parameters
+- The backend service will automatically create necessary databases in the existing MongoDB server
 
 **Alternative: Build from Source**
 
 If you prefer to build the image from source:
 
-**Linux/macOS:**
-```bash
-# Build the Docker image
-docker build -t web-backend:local .
-
-# Run the container
-docker run -it \
-  -p 18080:18080 \
-  -v $(pwd)/data:/workspace/web-backend/data \
-  -e MONGODB_HOST=your_mongodb_host \
-  -e MONGODB_PORT=27017 \
-  -e MONGODB_ADMIN_USERNAME=admin \
-  -e MONGODB_ADMIN_PASSWORD=your_admin_password \
-  web-backend:local
-```
-
-**Windows:**
 ```cmd
 # Build the Docker image
 docker build -t web-backend:local .
@@ -300,5 +327,11 @@ The project maintains high code quality with:
 - **Linting**: Ruff for code style and quality checks
 - **Type Hints**: Full type annotation support
 - **CI/CD**: Automated testing and deployment pipelines
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+The MIT License is a permissive free software license that allows you to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the software with minimal restrictions. The only requirement is that the original copyright notice and license text must be included in all copies or substantial portions of the software.
 
 ---
