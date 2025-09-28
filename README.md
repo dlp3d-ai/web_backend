@@ -11,6 +11,7 @@
 - [API Documentation](#api-documentation)
 - [Configuration](#configuration)
 - [Development](#development)
+- [License](#license)
 
 ## Overview
 
@@ -300,5 +301,11 @@ The project maintains high code quality with:
 - **Linting**: Ruff for code style and quality checks
 - **Type Hints**: Full type annotation support
 - **CI/CD**: Automated testing and deployment pipelines
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+The MIT License is a permissive free software license that allows you to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the software with minimal restrictions. The only requirement is that the original copyright notice and license text must be included in all copies or substantial portions of the software.
 
 ---
