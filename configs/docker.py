@@ -24,7 +24,10 @@ mongodb_password = os.environ.get('MONGODB_PASSWORD')
 mongodb_database = os.environ.get('MONGODB_DATABASE')
 mongodb_auth_database = os.environ.get('MONGODB_AUTH_DATABASE')
 default_character_config_paths = [
-    'configs/kq-default_sample.json', 'configs/ani-default_sample.json']
+    'configs/kq-default_community_sample.json',
+    'configs/fnn-default_community_sample.json',
+    'configs/ht-default_community_sample.json',
+    'configs/ani-default_community_sample.json']
 enable_cors = True
 host = '0.0.0.0'
 port = 18080
