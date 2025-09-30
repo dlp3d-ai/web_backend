@@ -141,42 +141,7 @@ Once all services are running, your frontend application only needs to connect t
 - **Backend API**: `http://localhost:18080` (Web Backend Service)
 - **Orchestrator API**: `http://localhost:18081` (Orchestrator Service)
 
-### Using Docker (Standalone Web Backend Service)
-
-To run only the Web Backend service using Docker, you need a pre-configured MongoDB server running separately:
-
-**Windows:**
-```cmd
-# Run the Web Backend service only
-docker run -it -p 18080:18080 -v .\data:/workspace/web-backend/data -e MONGODB_HOST=your_mongodb_host -e MONGODB_PORT=27017 -e MONGODB_ADMIN_USERNAME=admin -e MONGODB_ADMIN_PASSWORD=your_admin_password dockersenseyang/dlp3d_web_backend:latest
-```
-
-**Command Explanation:**
-- `-p 18080:18080`: Maps the container's port 18080 to your host machine's port 18080
-- `-v .\data:/workspace/web-backend/data`: Mounts your local `data` directory to the container's data directory
-- `-e MONGODB_HOST=your_mongodb_host`: Sets the MongoDB server hostname
-- `-e MONGODB_PORT=27017`: Sets the MongoDB server port (default: 27017)
-- `-e MONGODB_ADMIN_USERNAME=admin`: Sets the MongoDB admin username
-- `-e MONGODB_ADMIN_PASSWORD=your_admin_password`: Sets the MongoDB admin password
-- `dockersenseyang/dlp3d_web_backend:latest`: Uses the pre-built public image
-
-**Prerequisites:**
-- Ensure you have a `data` directory in your project root with motion database files
-- Make sure Docker is installed and running on your system
-- **MongoDB server must be already running and accessible** with the provided connection parameters
-- The backend service will automatically create necessary databases in the existing MongoDB server
-
-**Alternative: Build from Source**
-
-If you prefer to build the image from source:
-
-```cmd
-# Build the Docker image
-docker build -t web-backend:local .
-
-# Run the container
-docker run -it -p 18080:18080 -v .\data:/workspace/web-backend/data -e MONGODB_HOST=your_mongodb_host -e MONGODB_PORT=27017 -e MONGODB_ADMIN_USERNAME=admin -e MONGODB_ADMIN_PASSWORD=your_admin_password web-backend:local
-```
+📖 **Advanced Docker Usage**: For more detailed Docker deployment options, including GPU acceleration, network proxy configuration, and troubleshooting, see the [Docker Deployment Guide](docs/docker.md).
 
 ## Environment Setup
 
@@ -233,54 +198,16 @@ The API is organized into the following main categories:
 
 ## Configuration
 
-The DLP3D Web Backend uses a flexible configuration system that supports multiple environments and deployment scenarios.
+The DLP3D Web Backend uses a flexible configuration system that supports multiple environments and deployment scenarios. The system supports various configuration files and environment variables for different deployment needs.
 
-### Configuration Files
+### Configuration Options
 
-The system supports multiple configuration files for different environments:
+- **Configuration Files**: Multiple environment-specific configuration files
+- **Environment Variables**: Comprehensive environment variable support for Docker deployments
+- **Database Connection**: Automatic database setup and user provisioning
+- **Connection Flow**: Two-stage connection process for robust database connectivity
 
-- `configs/local.py` - Local development configuration
-- `configs/docker.py` - Docker deployment configuration  
-- `configs/diamond.py` - Production environment configuration
-
-### Environment Variables
-
-The following environment variables can be used to configure the DLP3D Web Backend service, especially important for Docker deployments:
-
-#### Application Database Connection
-- `MONGODB_HOST` - MongoDB server hostname (default: `mongodb`)
-- `MONGODB_PORT` - MongoDB server port (default: `27017`)
-- `MONGODB_DATABASE` - Application database name (default: `web_database`)
-- `MONGODB_AUTH_DATABASE` - Authentication database name (default: `web_database`)
-- `MONGODB_USERNAME` - Application username for database access (default: `web_user`)
-- `MONGODB_PASSWORD` - Application password for database access (default: `web_password`)
-
-#### Database Bootstrap (Admin Access)
-- `MONGODB_ADMIN_USERNAME` - MongoDB admin username for database bootstrap (default: `admin`)
-- `MONGODB_ADMIN_PASSWORD` - MongoDB admin password for database bootstrap (default: empty)
-
-#### Connection Flow
-The service follows a two-stage connection process:
-
-1. **Primary Connection Attempt**: The service first attempts to connect using the application credentials (`MONGODB_USERNAME`, `MONGODB_PASSWORD`) to the target database (`MONGODB_DATABASE`)
-
-2. **Bootstrap on Failure**: If the primary connection fails (indicating first-time setup), the service automatically uses admin credentials (`MONGODB_ADMIN_USERNAME`, `MONGODB_ADMIN_PASSWORD`) to:
-   - Create the application database if it doesn't exist
-   - Create the application user with `readWrite` permissions on the target database
-   - Set up the necessary database structure
-
-3. **Retry with Application Credentials**: After successful bootstrap, the service retries the connection using application credentials
-
-#### Usage Notes
-- **First-time deployment**: Only admin credentials need to be configured initially
-- **Existing deployments**: Only application credentials are required for normal operation
-- **Security**: For production deployments, ensure all passwords are set to secure values
-- **Automatic setup**: The service handles database and user creation automatically on first run
-
-Example usage:
-```bash
-python main.py --config_path configs/local.py
-```
+📖 **Detailed Configuration Guide**: For comprehensive configuration documentation, including environment variables, connection flow, and usage examples, see the [Configuration Guide](docs/configuration.md).
 
 ## Development
 

@@ -141,6 +141,24 @@ docker compose up
 - **Backend API**：`http://localhost:18080`（Web Backend 服务）
 - **Orchestrator API**：`http://localhost:18081`（Orchestrator 服务）
 
+📖 **高级 Docker 用法**：如需了解更多详细的 Docker 部署选项，包括 GPU 加速、网络代理配置和故障排除，请参阅 [Docker 部署指南](docker.md)。
+
+#### 使用 GPU 加速 Audio2Face
+
+为了获得更好的性能，您可以为 Audio2Face 服务使用 GPU 加速。这需要：
+
+**前提条件：**
+- 操作系统正确配置了 NVIDIA Container Toolkit
+- 具有支持 CUDA 12 的 NVIDIA GPU 硬件
+
+**启动 GPU 加速服务：**
+```bash
+# 启动所有支持 GPU 加速的后端服务
+docker compose -f docker-compose-gpu.yml up
+```
+
+这将启动相同的 DLP3D 后端基础设施，但 Audio2Face 服务将使用 GPU 加速，以提升面部动画生成的性能。
+
 ### 使用 Docker（独立 Web Backend 服务）
 
 要仅使用 Docker 运行 Web Backend 服务，您需要预先配置的 MongoDB 服务器单独运行：
@@ -233,54 +251,16 @@ API 按以下主要类别组织：
 
 ## 配置说明
 
-DLP3D Web Backend 使用灵活的配置系统，支持多种环境和部署场景。
+DLP3D Web Backend 使用灵活的配置系统，支持多种环境和部署场景。系统支持各种配置文件和环境变量，满足不同的部署需求。
 
-### 配置文件
+### 配置选项
 
-系统支持不同环境的多个配置文件：
+- **配置文件**：多环境特定配置文件
+- **环境变量**：Docker 部署的全面环境变量支持
+- **数据库连接**：自动数据库设置和用户配置
+- **连接流程**：两阶段连接过程确保数据库连接稳定性
 
-- `configs/local.py` - 本地开发配置
-- `configs/docker.py` - Docker 部署配置
-- `configs/diamond.py` - 生产环境配置
-
-### 环境变量
-
-以下环境变量可用于配置 DLP3D Web Backend 服务，对于 Docker 部署特别重要：
-
-#### 应用程序数据库连接
-- `MONGODB_HOST` - MongoDB 服务器主机名（默认：`mongodb`）
-- `MONGODB_PORT` - MongoDB 服务器端口（默认：`27017`）
-- `MONGODB_DATABASE` - 应用程序数据库名称（默认：`web_database`）
-- `MONGODB_AUTH_DATABASE` - 认证数据库名称（默认：`web_database`）
-- `MONGODB_USERNAME` - 数据库访问的应用程序用户名（默认：`web_user`）
-- `MONGODB_PASSWORD` - 数据库访问的应用程序密码（默认：`web_password`）
-
-#### 数据库引导（管理员访问）
-- `MONGODB_ADMIN_USERNAME` - 数据库引导的 MongoDB 管理员用户名（默认：`admin`）
-- `MONGODB_ADMIN_PASSWORD` - 数据库引导的 MongoDB 管理员密码（默认：空）
-
-#### 连接流程
-服务遵循两阶段连接过程：
-
-1. **主要连接尝试**：服务首先尝试使用应用程序凭据（`MONGODB_USERNAME`、`MONGODB_PASSWORD`）连接到目标数据库（`MONGODB_DATABASE`）
-
-2. **失败时引导**：如果主要连接失败（表示首次设置），服务自动使用管理员凭据（`MONGODB_ADMIN_USERNAME`、`MONGODB_ADMIN_PASSWORD`）来：
-   - 创建应用程序数据库（如果不存在）
-   - 创建对目标数据库具有 `readWrite` 权限的应用程序用户
-   - 设置必要的数据库结构
-
-3. **使用应用程序凭据重试**：成功引导后，服务使用应用程序凭据重试连接
-
-#### 使用说明
-- **首次部署**：最初只需要配置管理员凭据
-- **现有部署**：正常运行只需要应用程序凭据
-- **安全性**：对于生产部署，确保所有密码都设置为安全值
-- **自动设置**：服务在首次运行时自动处理数据库和用户创建
-
-使用示例：
-```bash
-python main.py --config_path configs/local.py
-```
+📖 **详细配置指南**：如需了解全面的配置文档，包括环境变量、连接流程和使用示例，请参阅 [配置指南](configuration.md)。
 
 ## 开发指南
 
