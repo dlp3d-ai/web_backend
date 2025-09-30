@@ -22,7 +22,10 @@ mongodb_password = 'web_password'
 mongodb_database = 'web_database'
 mongodb_auth_database = 'web_database'
 default_character_config_paths = [
-    'configs/kq-default_sample.json', 'configs/ani-default_sample.json']
+    'configs/kq-default_community_sample.json',
+    'configs/fnn-default_community_sample.json',
+    'configs/ht-default_community_sample.json',
+    'configs/ani-default_community_sample.json']
 enable_cors = True
 host = '0.0.0.0'
 port = 18080
