@@ -143,59 +143,6 @@ docker compose up
 
 📖 **高级 Docker 用法**：如需了解更多详细的 Docker 部署选项，包括 GPU 加速、网络代理配置和故障排除，请参阅 [Docker 部署指南](docker.md)。
 
-#### 使用 GPU 加速 Audio2Face
-
-为了获得更好的性能，您可以为 Audio2Face 服务使用 GPU 加速。这需要：
-
-**前提条件：**
-- 操作系统正确配置了 NVIDIA Container Toolkit
-- 具有支持 CUDA 12 的 NVIDIA GPU 硬件
-
-**启动 GPU 加速服务：**
-```bash
-# 启动所有支持 GPU 加速的后端服务
-docker compose -f docker-compose-gpu.yml up
-```
-
-这将启动相同的 DLP3D 后端基础设施，但 Audio2Face 服务将使用 GPU 加速，以提升面部动画生成的性能。
-
-### 使用 Docker（独立 Web Backend 服务）
-
-要仅使用 Docker 运行 Web Backend 服务，您需要预先配置的 MongoDB 服务器单独运行：
-
-**Windows：**
-```cmd
-# 仅运行 Web Backend 服务
-docker run -it -p 18080:18080 -v .\data:/workspace/web-backend/data -e MONGODB_HOST=your_mongodb_host -e MONGODB_PORT=27017 -e MONGODB_ADMIN_USERNAME=admin -e MONGODB_ADMIN_PASSWORD=your_admin_password dockersenseyang/dlp3d_web_backend:latest
-```
-
-**命令说明：**
-- `-p 18080:18080`：将容器的端口 18080 映射到主机端口 18080
-- `-v .\data:/workspace/web-backend/data`：将本地 `data` 目录挂载到容器的数据目录
-- `-e MONGODB_HOST=your_mongodb_host`：设置 MongoDB 服务器主机名
-- `-e MONGODB_PORT=27017`：设置 MongoDB 服务器端口（默认：27017）
-- `-e MONGODB_ADMIN_USERNAME=admin`：设置 MongoDB 管理员用户名
-- `-e MONGODB_ADMIN_PASSWORD=your_admin_password`：设置 MongoDB 管理员密码
-- `dockersenseyang/dlp3d_web_backend:latest`：使用预构建的公共镜像
-
-**前置条件：**
-- 确保项目根目录中有包含动作数据库文件的 `data` 目录
-- 确保系统已安装并运行 Docker
-- **MongoDB 服务器必须已经运行并可访问**，使用提供的连接参数
-- 后端服务将在现有 MongoDB 服务器中自动创建必要的数据库
-
-**替代方案：从源码构建**
-
-如果您希望从源码构建镜像：
-
-```cmd
-# 构建 Docker 镜像
-docker build -t web-backend:local .
-
-# 运行容器
-docker run -it -p 18080:18080 -v .\data:/workspace/web-backend/data -e MONGODB_HOST=your_mongodb_host -e MONGODB_PORT=27017 -e MONGODB_ADMIN_USERNAME=admin -e MONGODB_ADMIN_PASSWORD=your_admin_password web-backend:local
-```
-
 ## 环境配置
 
 对于本地开发和部署，请按照详细的安装指南操作：
