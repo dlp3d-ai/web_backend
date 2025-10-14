@@ -17,12 +17,12 @@ __logger_cfg__ = dict(
 )
 
 type = 'FastAPIServer'
-mongodb_host = os.environ.get('MONGODB_HOST')
-mongodb_port = int(os.environ.get('MONGODB_PORT', 27017))
-mongodb_username = os.environ.get('MONGODB_USERNAME')
-mongodb_password = os.environ.get('MONGODB_PASSWORD')
-mongodb_database = os.environ.get('MONGODB_DATABASE')
-mongodb_auth_database = os.environ.get('MONGODB_AUTH_DATABASE')
+mongodb_host = os.getenv('MONGODB_HOST')
+mongodb_port = int(os.getenv('MONGODB_PORT', 27017))
+mongodb_username = os.getenv('MONGODB_USERNAME')
+mongodb_password = os.getenv('MONGODB_PASSWORD')
+mongodb_database = os.getenv('MONGODB_DATABASE')
+mongodb_auth_database = os.getenv('MONGODB_AUTH_DATABASE')
 default_character_config_paths = [
     'configs/kq-default_community_sample.json',
     'configs/fnn-default_community_sample.json',

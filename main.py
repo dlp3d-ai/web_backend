@@ -35,11 +35,11 @@ def main(args) -> int:
     mongodb_database = startup_config['mongodb_database']
     mongodb_auth_database = startup_config['mongodb_auth_database']
     if args.mongodb_admin_username is None:
-        admin_usename = os.environ.get('MONGODB_ADMIN_USERNAME', 'admin')
+        admin_usename = os.getenv('MONGODB_ADMIN_USERNAME', 'admin')
     else:
         admin_usename = args.mongodb_admin_username
     if args.mongodb_admin_password is None:
-        admin_password = os.environ.get('MONGODB_ADMIN_PASSWORD', '')
+        admin_password = os.getenv('MONGODB_ADMIN_PASSWORD', '')
     else:
         admin_password = args.mongodb_admin_password
     logger_cfg = startup_config['logger_cfg'].copy()

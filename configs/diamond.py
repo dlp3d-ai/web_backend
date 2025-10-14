@@ -17,12 +17,12 @@ __logger_cfg__ = dict(
 )
 
 type = 'FastAPIServer'
-mongodb_host = os.environ.get('MONGODB_HOST')
-mongodb_port = int(os.environ.get('MONGODB_PORT', 27017))
-mongodb_username = os.environ.get('MONGODB_USERNAME')
-mongodb_password = os.environ.get('MONGODB_PASSWORD')
-mongodb_database = os.environ.get('MONGODB_DATABASE')
-mongodb_auth_database = os.environ.get('MONGODB_AUTH_DATABASE')
+mongodb_host = os.getenv('MONGODB_HOST')
+mongodb_port = int(os.getenv('MONGODB_PORT', 27017))
+mongodb_username = os.getenv('MONGODB_USERNAME')
+mongodb_password = os.getenv('MONGODB_PASSWORD')
+mongodb_database = os.getenv('MONGODB_DATABASE')
+mongodb_auth_database = os.getenv('MONGODB_AUTH_DATABASE')
 default_character_config_paths = [
     'configs/kq-default_community_sample.json',
     'configs/fnn-default_community_sample.json',
@@ -31,7 +31,7 @@ default_character_config_paths = [
 default_user_config_path = 'secrets/user_sample.json'
 enable_cors = True
 host = '0.0.0.0'
-port = 8080
+port = 18080
 logger_cfg = __logger_cfg__
 
 motion_file_api_cfg = dict(
