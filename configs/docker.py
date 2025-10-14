@@ -103,6 +103,8 @@ motion_file_api_cfg = dict(
         root_dir='data',
         file_paths={
             'KQ-default': 'blendshapes_meta/KQ-default_blendshapes_meta.json',
+            'FNN-default': 'blendshapes_meta/FNN-default_blendshapes_meta.json',
+            'HT-default': 'blendshapes_meta/HT-default_blendshapes_meta.json',
             'Ani-default': 'blendshapes_meta/Ani-default_blendshapes_meta.json'
         },
         logger_cfg=__logger_cfg__
