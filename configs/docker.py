@@ -17,7 +17,6 @@ __logger_cfg__ = dict(
 )
 
 type = 'FastAPIServer'
-enable_cors = True
 mongodb_host = os.getenv('MONGODB_HOST')
 mongodb_port = int(os.getenv('MONGODB_PORT', 27017))
 mongodb_username = os.getenv('MONGODB_USERNAME')
