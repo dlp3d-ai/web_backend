@@ -17,17 +17,17 @@ __logger_cfg__ = dict(
 )
 
 type = 'FastAPIServer'
-mongodb_host = os.environ.get('MONGODB_HOST')
-mongodb_port = int(os.environ.get('MONGODB_PORT', 27017))
-mongodb_username = os.environ.get('MONGODB_USERNAME')
-mongodb_password = os.environ.get('MONGODB_PASSWORD')
-mongodb_database = os.environ.get('MONGODB_DATABASE')
-mongodb_auth_database = os.environ.get('MONGODB_AUTH_DATABASE')
+mongodb_host = os.getenv('MONGODB_HOST')
+mongodb_port = int(os.getenv('MONGODB_PORT', 27017))
+mongodb_username = os.getenv('MONGODB_USERNAME')
+mongodb_password = os.getenv('MONGODB_PASSWORD')
+mongodb_database = os.getenv('MONGODB_DATABASE')
+mongodb_auth_database = os.getenv('MONGODB_AUTH_DATABASE')
 default_character_config_paths = [
-    'configs/kq-default_community_sample.json',
-    'configs/fnn-default_community_sample.json',
-    'configs/ht-default_community_sample.json',
-    'configs/ani-default_community_sample.json']
+    'configs/community_character_samples/kq-default.json',
+    'configs/community_character_samples/fnn-default.json',
+    'configs/community_character_samples/ht-default.json',
+    'configs/community_character_samples/ani-default.json']
 enable_cors = True
 host = '0.0.0.0'
 port = 18080
@@ -103,6 +103,8 @@ motion_file_api_cfg = dict(
         root_dir='data',
         file_paths={
             'KQ-default': 'blendshapes_meta/KQ-default_blendshapes_meta.json',
+            'FNN-default': 'blendshapes_meta/FNN-default_blendshapes_meta.json',
+            'HT-default': 'blendshapes_meta/HT-default_blendshapes_meta.json',
             'Ani-default': 'blendshapes_meta/Ani-default_blendshapes_meta.json'
         },
         logger_cfg=__logger_cfg__
