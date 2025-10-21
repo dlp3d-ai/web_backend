@@ -56,7 +56,7 @@ To run only the Web Backend service using Docker, you need a pre-configured Mong
 **Windows:**
 ```cmd
 # Run the Web Backend service only
-docker run -it -p 18080:18080 -v .\data:/workspace/web-backend/data -e MONGODB_HOST=your_mongodb_host -e MONGODB_PORT=27017 -e MONGODB_ADMIN_USERNAME=admin -e MONGODB_ADMIN_PASSWORD=your_admin_password dockersenseyang/dlp3d_web_backend:latest
+docker run -it -p 18080:18080 -v .\data:/workspace/web-backend/data -e MONGODB_HOST=your_mongodb_host -e MONGODB_PORT=27017 -e MONGODB_ADMIN_USERNAME=admin -e MONGODB_ADMIN_PASSWORD=your_admin_password dlp3d/web_backend:latest
 ```
 
 ### Command Parameters
@@ -69,7 +69,7 @@ docker run -it -p 18080:18080 -v .\data:/workspace/web-backend/data -e MONGODB_H
 | `-e MONGODB_PORT=27017` | Sets the MongoDB server port (default: 27017) |
 | `-e MONGODB_ADMIN_USERNAME=admin` | Sets the MongoDB admin username |
 | `-e MONGODB_ADMIN_PASSWORD=your_admin_password` | Sets the MongoDB admin password |
-| `dockersenseyang/dlp3d_web_backend:latest` | Uses the pre-built public image |
+| `dlp3d/web_backend:latest` | Uses the pre-built public image |
 
 ### Prerequisites
 

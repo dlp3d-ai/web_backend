@@ -101,7 +101,7 @@ export MONGODB_ADMIN_PASSWORD=your_admin_password
 # Run with Docker
 docker run -e MONGODB_HOST=your_mongodb_host \
            -e MONGODB_ADMIN_PASSWORD=your_admin_password \
-           dockersenseyang/dlp3d_web_backend:latest
+           dlp3d/web_backend:latest
 ```
 
 ### Production Configuration

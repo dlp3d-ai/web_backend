@@ -30,7 +30,7 @@ services:
       - mongodb_network
 
   web_backend:
-    image: dockersenseyang/dlp3d_web_backend:latest
+    image: dlp3d/web_backend:latest
     container_name: web_backend
     restart: unless-stopped
     ports:
