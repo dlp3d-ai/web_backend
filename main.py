@@ -243,7 +243,7 @@ def setup_parser():
         'database connections, and API configurations. ' +
         'The config file should be a Python module that ' +
         'exports a dictionary with server parameters.',
-        default='configs/local.py')
+        default='configs/community_en.py')
     parser.add_argument(
         '--mongodb_admin_username',
         type=str,

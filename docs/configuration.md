@@ -19,8 +19,8 @@ The system supports multiple configuration files for different environments:
 
 | File | Purpose | Environment |
 |------|---------|-------------|
-| `configs/local.py` | Local development configuration | Development |
-| `configs/docker.py` | Docker deployment configuration | Containerized |
+| `configs/community_en.py` | Docker deployment configuration for English community | Containerized |
+| `configs/community_zh.py` | Docker deployment configuration for Chinese community | Containerized |
 | `configs/diamond.py` | Production environment configuration | Production |
 
 ### Configuration File Structure
@@ -86,7 +86,7 @@ After successful bootstrap, the service retries the connection using application
 python main.py
 
 # Using specific configuration file
-python main.py --config_path configs/local.py
+python main.py --config_path configs/community_en.py
 ```
 
 ### Docker Environment Variables
@@ -101,7 +101,7 @@ export MONGODB_ADMIN_PASSWORD=your_admin_password
 # Run with Docker
 docker run -e MONGODB_HOST=your_mongodb_host \
            -e MONGODB_ADMIN_PASSWORD=your_admin_password \
-           dockersenseyang/dlp3d_web_backend:latest
+           dlp3d/web_backend:latest
 ```
 
 ### Production Configuration
@@ -124,12 +124,6 @@ export MONGODB_ADMIN_PASSWORD=secure_admin_password
 - **First-time deployment**: Only admin credentials need to be configured initially
 - **Existing deployments**: Only application credentials are required for normal operation
 - **Automatic setup**: The service handles database and user creation automatically on first run
-
-### Environment-Specific Tips
-
-- **Development**: Use `configs/local.py` for local development
-- **Docker**: Use environment variables for containerized deployments
-- **Production**: Use `configs/diamond.py` with secure credentials
 
 ---
 

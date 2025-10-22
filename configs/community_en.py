@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 
 # CRITICAL = 50
@@ -15,17 +17,17 @@ __logger_cfg__ = dict(
 )
 
 type = 'FastAPIServer'
-mongodb_host = '127.0.0.1'
-mongodb_port = 27017
-mongodb_username = 'web_user'
-mongodb_password = 'web_password'
-mongodb_database = 'web_database'
-mongodb_auth_database = 'web_database'
+mongodb_host = os.getenv('MONGODB_HOST')
+mongodb_port = int(os.getenv('MONGODB_PORT', 27017))
+mongodb_username = os.getenv('MONGODB_USERNAME')
+mongodb_password = os.getenv('MONGODB_PASSWORD')
+mongodb_database = os.getenv('MONGODB_DATABASE')
+mongodb_auth_database = os.getenv('MONGODB_AUTH_DATABASE')
 default_character_config_paths = [
-    'configs/community_character_samples/kq-default.json',
-    'configs/community_character_samples/fnn-default.json',
-    'configs/community_character_samples/ht-default.json',
-    'configs/community_character_samples/ani-default.json']
+    'configs/community_character_samples_en/keqing-default.json',
+    'configs/community_character_samples_en/furina-default.json',
+    'configs/community_character_samples_en/hutao-default.json',
+    'configs/community_character_samples_en/ani-default.json']
 enable_cors = True
 host = '0.0.0.0'
 port = 18080
