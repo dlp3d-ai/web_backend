@@ -29,6 +29,10 @@ default_character_config_paths = [
     'configs/diamond_character_samples/ht-default.json',
     'configs/diamond_character_samples/ani-default.json']
 default_user_config_path = 'secrets/user_sample.json'
+aws_cognito_user_pool_id = os.environ['AWS_COGNITO_USER_POOL_ID']
+aws_cognito_client_id = os.environ['AWS_COGNITO_CLIENT_ID']
+aws_cognito_secret_key = os.environ['AWS_COGNITO_SECRET_KEY']
+aws_region = os.environ['AWS_REGION']
 enable_cors = True
 host = '0.0.0.0'
 port = 18080
