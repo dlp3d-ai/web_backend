@@ -8,8 +8,11 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Any
 
+import aioboto3
+import boto3
 import pytz
 import uvicorn
+from botocore.exceptions import ClientError
 from fastapi import (
     APIRouter,
     FastAPI,
@@ -21,16 +24,20 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from pydantic import ValidationError
 from pymongo import AsyncMongoClient, MongoClient
 
 from ..apis.builder import build_api
 from ..data_structures import CharacterConfig, UserConfig, UserCredential
+from ..utils.hash import get_secret_hash, str_to_md5
 from ..utils.super import Super
 from .exceptions import (
     OPENAPI_RESPONSE_400,
     OPENAPI_RESPONSE_404,
     OPENAPI_RESPONSE_503,
     AuthenticationFailedException,
+    AWSRegistrationException,
+    EmailAuthenticationFormatException,
     NoCharacterException,
     NoLogFileException,
     NoUserException,
@@ -42,10 +49,11 @@ from .exceptions import (
 from .requests import (
     AuthenticateUserRequest,
     BlendshapesMetaV1Request,
-    CreateUserRequest,
+    ConfirmRegistrationRequest,
     DeleteCharacterRequest,
     DeleteUserRequest,
     DuplicateCharacterRequest,
+    EmailAuthenticateUserRequest,
     JointsMetaV1Request,
     MeshV1Request,
     MotionFileV1Request,
@@ -74,6 +82,7 @@ from .responses import (
     ListUsersResponse,
     MotionKeywordsV1Response,
     RegisterUserResponse,
+    UpdateUserPasswordResponse,
 )
 
 try:
@@ -105,6 +114,10 @@ class FastAPIServer(Super):
         mongodb_user_collection: str = 'UserConfigs',
         mongodb_character_collection: str = 'CharacterConfigs',
         default_user_config_path: str | None = None,
+        aws_cognito_user_pool_id: str | None = None,
+        aws_cognito_client_id: str | None = None,
+        aws_cognito_secret_key: str | None = None,
+        aws_region: str | None = None,
         max_workers: int = 4,
         enable_cors: bool = False,
         host: str = '0.0.0.0',
@@ -141,6 +154,17 @@ class FastAPIServer(Super):
                 Defaults to 'CharacterConfigs'.
             default_user_config_path (str | None, optional):
                 Path to default user configuration JSON file. Defaults to None.
+            aws_cognito_user_pool_id (str | None, optional):
+                AWS Cognito User Pool ID for authentication. Defaults to None.
+            aws_cognito_client_id (str | None, optional):
+                AWS Cognito App Client ID for authentication. Defaults to None.
+            aws_cognito_secret_key (str | None, optional):
+                AWS Cognito App Client Secret Key for authentication. Defaults to None.
+            aws_region (str | None, optional):
+                AWS region for Cognito services. Defaults to None.
+            max_workers (int, optional):
+                Maximum number of worker threads for thread pool executor.
+                Defaults to 4.
             enable_cors (bool, optional):
                 Whether to enable CORS middleware. Defaults to False.
             host (str, optional):
@@ -184,6 +208,15 @@ class FastAPIServer(Super):
             with open(json_path) as f:
                 data = json.load(f)
                 self.default_character_configs.append(data)
+        # for aws cognito
+        self.aws_cognito_user_pool_id = aws_cognito_user_pool_id
+        self.aws_cognito_client_id = aws_cognito_client_id
+        self.aws_cognito_secret_key = aws_cognito_secret_key
+        self.aws_region = aws_region
+        self.aws_cognito_enabled = self._validate_aws()
+        if self.aws_cognito_enabled:
+            self.aioboto3_session = aioboto3.Session()
+            self.logger.info("AWS Cognito Enabled.")
         # for fastapi
         self.host = host
         self.port = port
@@ -218,6 +251,25 @@ class FastAPIServer(Super):
                 self.app.add_event_handler('shutdown', listener)
         register_error_handlers(self.app)
         self.asyncio_tasks = set()
+
+    def _validate_aws(self) -> bool:
+        attr_names = (
+            'aws_cognito_user_pool_id',
+            'aws_cognito_client_id',
+            'aws_cognito_secret_key',
+            'aws_region')
+        for attr_name in attr_names:
+            attr_value = getattr(self, attr_name)
+            if attr_value is None or attr_value == '':
+                return False
+        cognito_client = boto3.client(
+            'cognito-idp', region_name=self.aws_region)
+        # test connection to cognito
+        cognito_client.list_users(
+            UserPoolId=self.aws_cognito_user_pool_id,
+            Limit=1)
+        cognito_client.close()
+        return True
 
     async def _build_motion_file_api(self) -> None:
         """Build Python API instance.
@@ -318,6 +370,20 @@ class FastAPIServer(Super):
                 **OPENAPI_RESPONSE_400
             },
         )
+        if self.aws_cognito_enabled:
+            router.add_api_route(
+                "/api/v1/confirm_registration",
+                self.confirm_registration,
+                methods=["POST"],
+                response_model=RegisterUserResponse,
+                responses={
+                    200: {
+                        "description": "Success",
+                        "model": RegisterUserResponse
+                    },
+                    **OPENAPI_RESPONSE_503
+                },
+            )
         router.add_api_route(
             "/api/v1/update_user_password",
             self.update_user_password,
@@ -338,17 +404,6 @@ class FastAPIServer(Super):
                 200: {
                     "description": "Success",
                     "model": AuthenticateUserResponse
-                },
-                **OPENAPI_RESPONSE_400
-            },
-        )
-        router.add_api_route(
-            "/api/v1/create_user",
-            self.create_user,
-            methods=["POST"],
-            responses={
-                200: {
-                    "description": "Success"
                 },
                 **OPENAPI_RESPONSE_400
             },
@@ -640,67 +695,151 @@ class FastAPIServer(Super):
         return response
 
     async def register_user(self, request: RegisterUserRequest) -> RegisterUserResponse:
-        """Register a new user with username and password.
+        """Register a new user in the system.
 
-        This method creates a new user account by generating a unique user ID,
-        checking for username conflicts, and storing the credentials in the
-        credential collection.
+        This method creates a new user account either in AWS Cognito (if enabled)
+        or in MongoDB. For AWS Cognito, it sends a verification email that requires
+        user confirmation.
+        For MongoDB, it creates the user directly without confirmation.
 
         Args:
             request (RegisterUserRequest):
-                Request containing username and password for the new user.
+                Request containing username and password for registration.
 
         Returns:
             RegisterUserResponse:
-                Response containing the generated user ID.
+                Response containing user ID and confirmation requirement status.
 
         Raises:
+            EmailAuthenticationFormatException:
+                If request format is invalid for AWS Cognito mode.
             UserAlreadyExistsException:
-                If the username already exists in the system.
+                If username already exists in MongoDB mode.
+            AWSRegistrationException:
+                If AWS Cognito registration fails.
         """
-        user_id = str(uuid.uuid4())
-        async with AsyncMongoClient(
-                host=self.mongodb_host,
-                port=self.mongodb_port,
-                username=self.mongodb_username,
-                password=self.mongodb_password,
-                authSource=self.mongodb_auth_database,
-        ) as client:
-            db = client[self.mongodb_database]
-            credential_collection = db[self.mongodb_credential_collection]
-            # check if username already exists
-            if await credential_collection.count_documents(
-                    {"username": request.username}) > 0:
-                msg = f"Username {request.username} already exists."
+        if self.aws_cognito_enabled:
+            try:
+                EmailAuthenticateUserRequest.model_validate(request.model_dump())
+            except ValidationError as e:
+                details = e.errors(include_url=False, include_context=False)
+                msg = f'Invalid request format: {details}'
                 self.logger.error(msg)
-                raise UserAlreadyExistsException(status_code=400, detail=msg)
-            credential = UserCredential(
-                username=request.username,
-                password=request.password,
-                user_id=user_id)
-            await credential_collection.insert_one(credential.model_dump())
-        return RegisterUserResponse(user_id=user_id)
+                raise EmailAuthenticationFormatException(
+                    status_code=400, detail=msg) from e
+            async with self.aioboto3_session.client(
+                    'cognito-idp', region_name=self.aws_region) as cognito_client:
+                loop = asyncio.get_running_loop()
+                hashed_username = await loop.run_in_executor(
+                    self.executor,
+                    str_to_md5,
+                    request.username)
+                secret_hash = await loop.run_in_executor(
+                    self.executor,
+                    get_secret_hash,
+                    hashed_username,
+                    self.aws_cognito_client_id,
+                    self.aws_cognito_secret_key)
+                response = await cognito_client.sign_up(
+                    ClientId=self.aws_cognito_client_id,
+                    SecretHash=secret_hash,
+                    Username=hashed_username,
+                    Password=request.password,
+                    UserAttributes=[
+                        {
+                            'Name': 'email',
+                            'Value': request.username
+                        }
+                    ]
+                )
+            user_id = response.get('UserSub')
+            return RegisterUserResponse(user_id=user_id, confirmation_required=True)
+        else:
+            user_id = str(uuid.uuid4())
+            async with AsyncMongoClient(
+                    host=self.mongodb_host,
+                    port=self.mongodb_port,
+                    username=self.mongodb_username,
+                    password=self.mongodb_password,
+                    authSource=self.mongodb_auth_database,
+            ) as client:
+                db = client[self.mongodb_database]
+                credential_collection = db[self.mongodb_credential_collection]
+                # check if username already exists
+                if await credential_collection.count_documents(
+                        {"username": request.username}) > 0:
+                    msg = f"Username {request.username} already exists."
+                    self.logger.error(msg)
+                    raise UserAlreadyExistsException(status_code=400, detail=msg)
+                credential = UserCredential(
+                    username=request.username,
+                    password=request.password,
+                    user_id=user_id)
+                await credential_collection.insert_one(credential.model_dump())
+            return RegisterUserResponse(user_id=user_id, confirmation_required=False)
 
-    async def create_user(self, create_user_request: CreateUserRequest) -> Response:
-        """Create a new user with default configuration and characters.
+    async def confirm_registration(
+            self, request: ConfirmRegistrationRequest) -> Response:
+        """Confirm user registration with verification code.
 
-        This method generates a new user with a unique ID, creates a user
-        configuration with default settings, and initializes default
-        character configurations for the user.
+        This method verifies the user's registration using the confirmation
+        code sent to their email address through AWS Cognito.
 
         Args:
-            create_user_request (CreateUserRequest):
-                Request containing the user ID to create.
+            request (ConfirmRegistrationRequest):
+                Request containing email and confirmation code.
 
         Returns:
             Response:
-                Empty response indicating successful creation.
+                Empty response indicating successful confirmation.
 
         Raises:
-            UserAlreadyExistsException:
-                If a user with the specified ID already exists.
+            AWSRegistrationException:
+                If confirmation code is invalid or AWS Cognito operation fails.
         """
-        user_id = create_user_request.user_id
+        async with self.aioboto3_session.client(
+                'cognito-idp', region_name=self.aws_region) as cognito_client:
+            loop = asyncio.get_running_loop()
+            hashed_username = await loop.run_in_executor(
+                self.executor,
+                str_to_md5,
+                request.email)
+            secret_hash = await loop.run_in_executor(
+                self.executor,
+                get_secret_hash,
+                hashed_username,
+                self.aws_cognito_client_id,
+                self.aws_cognito_secret_key)
+            try:
+                await cognito_client.confirm_sign_up(
+                    ClientId=self.aws_cognito_client_id,
+                    SecretHash=secret_hash,
+                    Username=hashed_username,
+                    ConfirmationCode=request.confirmation_code
+                )
+                return Response(status_code=200)
+            except ClientError as e:
+                error_code = e.response['Error']['Code']
+                details = e.response['Error']['Message']
+                self.logger.error(
+                    f"Cognito confirm sign up error: {error_code} - {details}")
+                raise AWSRegistrationException(
+                    status_code=400,
+                    detail=details
+                ) from e
+
+    async def _ensure_user_app_initialized(
+            self, user_id: str) -> None:
+        """Ensure user application data is initialized in MongoDB.
+
+        This method checks if the user exists in the database and initializes
+        their configuration with default values and default characters if not found.
+        It is idempotent and can be safely called multiple times.
+
+        Args:
+            user_id (str):
+                Unique identifier of the user to initialize.
+        """
         user_config_dict = self.default_user_config.copy()
         user_config_dict["user_id"] = user_id
         user_config = UserConfig.model_validate(user_config_dict)
@@ -714,67 +853,146 @@ class FastAPIServer(Super):
             db = client[self.mongodb_database]
             user_collection = db[self.mongodb_user_collection]
             # check if user already exists
-            if await user_collection.count_documents({"user_id": user_id}) > 0:
-                msg = f"User {user_id} already exists."
-                self.logger.error(msg)
-                raise UserAlreadyExistsException(status_code=400, detail=msg)
-            await user_collection.insert_one(user_config.model_dump())
-            character_collection = db[self.mongodb_character_collection]
-            for character in self.default_character_configs:
-                character_id = str(uuid.uuid4())
-                unix_timestamp = time.time()
-                shanghai_tz = pytz.timezone("Asia/Shanghai")
-                time_str = datetime.fromtimestamp(
-                    unix_timestamp, shanghai_tz).strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
-                character_config_dict = character.copy()
-                character_config_dict["user_id"] = user_id
-                character_config_dict["character_id"] = character_id
-                character_config_dict["create_datatime"] = time_str
-                character_config_dict["read_only"] = True
-                character_config = CharacterConfig.model_validate(character_config_dict)
-                await character_collection.insert_one(character_config.model_dump())
-        return Response()
+            if await user_collection.count_documents({"user_id": user_id}) == 0:
+                msg = f"Initializing user {user_id} in the database."
+                self.logger.info(msg)
+                await user_collection.insert_one(user_config.model_dump())
+                character_collection = db[self.mongodb_character_collection]
+                for character in self.default_character_configs:
+                    character_id = str(uuid.uuid4())
+                    unix_timestamp = time.time()
+                    shanghai_tz = pytz.timezone("Asia/Shanghai")
+                    time_str = datetime.fromtimestamp(
+                        unix_timestamp, shanghai_tz).strftime(
+                            "%Y-%m-%d %H:%M:%S,%f")[:-3]
+                    character_config_dict = character.copy()
+                    character_config_dict["user_id"] = user_id
+                    character_config_dict["character_id"] = character_id
+                    character_config_dict["create_datatime"] = time_str
+                    character_config_dict["read_only"] = True
+                    character_config = CharacterConfig.model_validate(
+                        character_config_dict)
+                    await character_collection.insert_one(character_config.model_dump())
 
     async def update_user_password(
             self,
-            request: UpdateUserPasswordRequest) -> Response:
+            request: UpdateUserPasswordRequest) -> UpdateUserPasswordResponse:
         """Update a user's password after authentication.
 
-        This method verifies the user's current password and updates it
-        with a new password in the credential collection.
+        This method verifies the user's current password and updates it with
+        a new password. For AWS Cognito mode, it authenticates the user first
+        and then uses the access token to change the password. For MongoDB mode,
+        it updates the password directly in the credential collection.
 
         Args:
             request (UpdateUserPasswordRequest):
                 Request containing username, current password, and new password.
 
         Returns:
-            Response:
-                Empty response indicating successful password update.
+            UpdateUserPasswordResponse:
+                Response indicating password change success and confirmation status.
 
         Raises:
+            EmailAuthenticationFormatException:
+                If request format is invalid for AWS Cognito mode.
             AuthenticationFailedException:
-                If the current password is incorrect.
-            UsernameNotFoundException:
-                If the username is not found.
+                If AWS Cognito operation fails or current password is incorrect.
         """
-        username = request.username
-        old_password = request.password
-        await self.authenticate_user(
-            AuthenticateUserRequest(username=username, password=old_password))
-        new_password = request.new_password
-        async with AsyncMongoClient(
-                host=self.mongodb_host,
-                port=self.mongodb_port,
-                username=self.mongodb_username,
-                password=self.mongodb_password,
-                authSource=self.mongodb_auth_database,
-        ) as client:
-            db = client[self.mongodb_database]
-            credential_collection = db[self.mongodb_credential_collection]
-            await credential_collection.update_one(
-                {"username": username},
-                {"$set": {"password": new_password}})
-        return Response()
+        if self.aws_cognito_enabled:
+            previous_pwd_dict = dict(
+                username=request.username,
+                password=request.password,
+            )
+            try:
+                EmailAuthenticateUserRequest.model_validate(previous_pwd_dict)
+            except ValidationError as e:
+                details = e.errors(include_url=False, include_context=False)
+                msg = f'Invalid request format: {details}'
+                self.logger.error(msg)
+                raise EmailAuthenticationFormatException(
+                    status_code=400, detail=msg) from e
+            proposed_pwd_dict = dict(
+                username=request.username,
+                password=request.new_password,
+            )
+            try:
+                EmailAuthenticateUserRequest.model_validate(proposed_pwd_dict)
+            except ValidationError as e:
+                details = e.errors(include_url=False, include_context=False)
+                msg = f'Invalid request format: {details}'
+                self.logger.error(msg)
+                raise EmailAuthenticationFormatException(
+                    status_code=400, detail=msg) from e
+            async with self.aioboto3_session.client(
+                    'cognito-idp', region_name=self.aws_region) as cognito_client:
+                loop = asyncio.get_running_loop()
+                hashed_username = await loop.run_in_executor(
+                    self.executor,
+                    str_to_md5,
+                    request.username)
+                secret_hash = await loop.run_in_executor(
+                    self.executor,
+                    get_secret_hash,
+                    hashed_username,
+                    self.aws_cognito_client_id,
+                    self.aws_cognito_secret_key)
+                try:
+                    response = await cognito_client.initiate_auth(
+                        ClientId=self.aws_cognito_client_id,
+                        AuthFlow='USER_PASSWORD_AUTH',
+                        AuthParameters={
+                            'USERNAME': hashed_username,
+                            'PASSWORD': request.password,
+                            'SECRET_HASH': secret_hash
+                        }
+                    )
+                except ClientError as e:
+                    error_code = e.response['Error']['Code']
+                    details = e.response['Error']['Message']
+                    self.logger.error(
+                        f"Cognito initiate auth error: {error_code} - {details}")
+                    raise AuthenticationFailedException(
+                        status_code=400,
+                        detail=details
+                    ) from e
+                # TODO: use AccessToken for interface authentication instead of user_id
+                auth_result = response.get('AuthenticationResult', {})
+                access_token = auth_result.get('AccessToken')
+                try:
+                    response = await cognito_client.change_password(
+                        PreviousPassword=request.password,
+                        ProposedPassword=request.new_password,
+                        AccessToken=access_token
+                    )
+                except ClientError as e:
+                    error_code = e.response['Error']['Code']
+                    details = e.response['Error']['Message']
+                    self.logger.error(
+                        f"Cognito change password error: {error_code} - {details}")
+                    raise AuthenticationFailedException(
+                        status_code=400,
+                        detail=details
+                    ) from e
+            return UpdateUserPasswordResponse(confirmation_required=False)
+        else:
+            username = request.username
+            old_password = request.password
+            await self.authenticate_user(
+                AuthenticateUserRequest(username=username, password=old_password))
+            new_password = request.new_password
+            async with AsyncMongoClient(
+                    host=self.mongodb_host,
+                    port=self.mongodb_port,
+                    username=self.mongodb_username,
+                    password=self.mongodb_password,
+                    authSource=self.mongodb_auth_database,
+            ) as client:
+                db = client[self.mongodb_database]
+                credential_collection = db[self.mongodb_credential_collection]
+                await credential_collection.update_one(
+                    {"username": username},
+                    {"$set": {"password": new_password}})
+            return UpdateUserPasswordResponse(confirmation_required=False)
 
     async def authenticate_user(
             self,
@@ -793,44 +1011,100 @@ class FastAPIServer(Super):
                 Response containing the user ID if authentication successful.
 
         Raises:
-            UsernameNotFoundException:
-                If the username is not found.
             AuthenticationFailedException:
-                If the password is incorrect.
+                If request format is invalid, AWS Cognito operation fails,
+                or password is incorrect.
+            UsernameNotFoundException:
+                If the username is not found in MongoDB mode.
         """
-        async with AsyncMongoClient(
-                host=self.mongodb_host,
-                port=self.mongodb_port,
-                username=self.mongodb_username,
-                password=self.mongodb_password,
-                authSource=self.mongodb_auth_database,
-        ) as client:
-            db = client[self.mongodb_database]
-            credential_collection = db[self.mongodb_credential_collection]
-            username_hit = await credential_collection.find_one(
-                {"username": request.username})
-            if username_hit is None:
-                msg = f"Username {request.username} not found."
+        if self.aws_cognito_enabled:
+            try:
+                EmailAuthenticateUserRequest.model_validate(request.model_dump())
+            except ValidationError as e:
+                details = e.errors(include_url=False, include_context=False)
+                msg = f'Invalid request format: {details}'
                 self.logger.error(msg)
-                raise UsernameNotFoundException(status_code=400, detail=msg)
-            password_hit = await credential_collection.find_one(
-                {"username": request.username, "password": request.password})
-            if password_hit is None:
-                msg = "Password mismatch."
-                self.logger.error(msg)
-                raise AuthenticationFailedException(status_code=400, detail=msg)
-            user_id = username_hit["user_id"]
-            return AuthenticateUserResponse(user_id=user_id)
+                raise AuthenticationFailedException(status_code=400, detail=msg) from e
+            async with self.aioboto3_session.client(
+                    'cognito-idp', region_name=self.aws_region) as cognito_client:
+                loop = asyncio.get_running_loop()
+                hashed_username = await loop.run_in_executor(
+                    self.executor,
+                    str_to_md5,
+                    request.username)
+                secret_hash = await loop.run_in_executor(
+                    self.executor,
+                    get_secret_hash,
+                    hashed_username,
+                    self.aws_cognito_client_id,
+                    self.aws_cognito_secret_key)
+                try:
+                    response = await cognito_client.initiate_auth(
+                        ClientId=self.aws_cognito_client_id,
+                        AuthFlow='USER_PASSWORD_AUTH',
+                        AuthParameters={
+                            'USERNAME': hashed_username,
+                            'PASSWORD': request.password,
+                            'SECRET_HASH': secret_hash
+                        }
+                    )
+                except ClientError as e:
+                    error_code = e.response['Error']['Code']
+                    details = e.response['Error']['Message']
+                    self.logger.error(
+                        f"Cognito initiate auth error: {error_code} - {details}")
+                    raise AuthenticationFailedException(
+                        status_code=400,
+                        detail=details
+                    ) from e
+                # TODO: use AccessToken for interface authentication instead of user_id
+                auth_result = response.get('AuthenticationResult', {})
+                access_token = auth_result.get('AccessToken')
+                user_info_response = await cognito_client.get_user(
+                    AccessToken=access_token)
+                user_attr = user_info_response['UserAttributes']
+                user_id = None
+                for attr_dict in user_attr:
+                    if attr_dict['Name'] == 'sub':
+                        user_id = attr_dict['Value']
+                        break
+                if user_id is None:
+                    msg = "User ID not found in AWS Cognito user attributes."
+                    self.logger.error(msg)
+                    raise AuthenticationFailedException(status_code=400, detail=msg)
+        else:
+            async with AsyncMongoClient(
+                    host=self.mongodb_host,
+                    port=self.mongodb_port,
+                    username=self.mongodb_username,
+                    password=self.mongodb_password,
+                    authSource=self.mongodb_auth_database,
+            ) as client:
+                db = client[self.mongodb_database]
+                credential_collection = db[self.mongodb_credential_collection]
+                username_hit = await credential_collection.find_one(
+                    {"username": request.username})
+                if username_hit is None:
+                    msg = f"Username {request.username} not found."
+                    self.logger.error(msg)
+                    raise UsernameNotFoundException(status_code=400, detail=msg)
+                password_hit = await credential_collection.find_one(
+                    {"username": request.username, "password": request.password})
+                if password_hit is None:
+                    msg = "Password mismatch."
+                    self.logger.error(msg)
+                    raise AuthenticationFailedException(status_code=400, detail=msg)
+                user_id = username_hit["user_id"]
+        await self._ensure_user_app_initialized(user_id)
+        return AuthenticateUserResponse(user_id=user_id)
 
     async def delete_user(self, request: DeleteUserRequest) -> Response:
         """Delete a user and all associated data from the database.
 
-        This method connects to MongoDB and performs a comprehensive delete operation.
-        It deletes the user from three collections: credential collection (user
-        credentials), user configuration collection (API keys and settings), and
-        character collection (all characters associated with the user). The operation
-        includes detailed logging for audit purposes and only raises an exception if
-        no data is found for the user in any of the collections.
+        This method removes user data from MongoDB including credentials (if not using
+        AWS Cognito), user configuration, and all associated characters. For AWS Cognito
+        mode, user deletion in Cognito is not supported and
+        only MongoDB data is removed.
 
         Args:
             request (DeleteUserRequest):
@@ -845,6 +1119,30 @@ class FastAPIServer(Super):
                 If no user data is found in any collection for the specified user_id.
         """
         user_id = request.user_id
+        if self.aws_cognito_enabled:
+            msg = 'User deletion in AWS Cognito is not supported through this API. ' + \
+                'Please use AWS Console or AWS CLI to delete users from the User Pool.'
+            self.logger.warning(msg)
+        else:
+            async with AsyncMongoClient(
+                    host=self.mongodb_host,
+                    port=self.mongodb_port,
+                    username=self.mongodb_username,
+                    password=self.mongodb_password,
+                    authSource=self.mongodb_auth_database,
+            ) as client:
+                exception_msg = ''
+                db = client[self.mongodb_database]
+                credential_collection = db[self.mongodb_credential_collection]
+                n_credentials = await credential_collection.count_documents({})
+                if n_credentials == 0:
+                    exception_msg += \
+                        f'No user credential found for user_id: {user_id}.\n'
+                else:
+                    await credential_collection.delete_many({"user_id": user_id})
+                    self.logger.info(
+                        "Deleted user credential for " +
+                        f"user {user_id} from the database.")
         async with AsyncMongoClient(
                 host=self.mongodb_host,
                 port=self.mongodb_port,
@@ -854,14 +1152,6 @@ class FastAPIServer(Super):
         ) as client:
             exception_msg = ''
             db = client[self.mongodb_database]
-            credential_collection = db[self.mongodb_credential_collection]
-            n_credentials = await credential_collection.count_documents({})
-            if n_credentials == 0:
-                exception_msg += f'No user credential found for user_id: {user_id}.\n'
-            else:
-                await credential_collection.delete_many({"user_id": user_id})
-                self.logger.info(
-                    f"Deleted user credential for user {user_id} from the database.")
             user_config_collection = db[self.mongodb_user_collection]
             # log how many documents are deleted
             n_user_configs = await user_config_collection.count_documents({})

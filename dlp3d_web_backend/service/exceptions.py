@@ -135,6 +135,22 @@ class NoCharacterException(HTTPException):
     """
     pass
 
+class EmailAuthenticationFormatException(HTTPException):
+    """Exception raised when email authentication format is invalid.
+
+    This exception is raised when the server attempts to authenticate a user
+    with an email address that is not in the correct format.
+    """
+    pass
+
+class AWSRegistrationException(HTTPException):
+    """Exception raised when AWS registration fails.
+
+    This exception is raised when the server attempts to register a user
+    with an email address that is not in the correct format.
+    """
+    pass
+
 async def http_exception_handler(request, exc):
     """Handle HTTP exceptions and return standardized error responses.
 
@@ -259,4 +275,7 @@ def register_error_handlers(app: FastAPI):
     app.add_exception_handler(AuthenticationFailedException, http_exception_handler)
     app.add_exception_handler(NoUserException, http_exception_handler)
     app.add_exception_handler(NoCharacterException, http_exception_handler)
+    app.add_exception_handler(
+        EmailAuthenticationFormatException, http_exception_handler)
+    app.add_exception_handler(AWSRegistrationException, http_exception_handler)
     app.add_exception_handler(Exception, exception_handler)
