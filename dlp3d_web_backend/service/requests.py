@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field
 
 
 class RegisterUserRequest(BaseModel):
@@ -15,6 +15,40 @@ class RegisterUserRequest(BaseModel):
     """
     username: str
     password: str
+
+class EmailAuthenticateUserRequest(BaseModel):
+    """Request model for email-based user authentication.
+
+    This model contains the necessary fields to authenticate a user
+    using email address and password credentials. The email field is
+    validated for proper email format, and the password must meet
+    minimum length requirements.
+
+    Attributes:
+        username (EmailStr):
+            Email address for authentication (validated for proper format).
+        password (str):
+            Password for authentication (minimum 8 characters required).
+    """
+    username: EmailStr
+    password: str = Field(
+        ...,
+        min_length=8,
+        description="Password must be at least 8 characters long")
+
+class ConfirmRegistrationRequest(BaseModel):
+    """Request model for confirming user registration.
+
+    This model contains the necessary fields to confirm a user's registration.
+
+    Attributes:
+        email (str):
+            Email of the user to be confirmed.
+        confirmation_code (str):
+            Confirmation code for the user's registration.
+    """
+    email: EmailStr
+    confirmation_code: str
 
 class UpdateUserPasswordRequest(BaseModel):
     """Request model for updating user password.
@@ -34,18 +68,6 @@ class UpdateUserPasswordRequest(BaseModel):
     password: str
     new_password: str
 
-class CreateUserRequest(BaseModel):
-    """Request model for creating a new user with default configuration.
-
-    This model contains the user ID for creating a new user account
-    with default configuration and character settings.
-
-    Attributes:
-        user_id (str):
-            Unique identifier for the user to be created.
-    """
-    user_id: str
-
 class AuthenticateUserRequest(BaseModel):
     """Request model for user authentication.
 
@@ -64,14 +86,28 @@ class AuthenticateUserRequest(BaseModel):
 class DeleteUserRequest(BaseModel):
     """Request model for deleting a user.
 
-    This model contains the necessary fields to delete a user.
+    This model contains the necessary fields to delete a user and all
+    associated data from the system.
+
+    Attributes:
+        user_id (str):
+            Unique identifier of the user to be deleted.
     """
     user_id: str
 
 class DuplicateCharacterRequest(BaseModel):
     """Request model for duplicating a character.
 
-    This model contains the necessary fields to duplicate a character.
+    This model contains the necessary fields to create a copy of an
+    existing character with optional name customization.
+
+    Attributes:
+        user_id (str):
+            Unique identifier of the user who owns the character.
+        character_id (str):
+            Unique identifier of the character to duplicate.
+        character_name (str | None, optional):
+            Optional new name for the duplicated character. Defaults to None.
     """
     user_id: str
     character_id: str
@@ -80,7 +116,14 @@ class DuplicateCharacterRequest(BaseModel):
 class DeleteCharacterRequest(BaseModel):
     """Request model for deleting a character.
 
-    This model contains the necessary fields to delete a character.
+    This model contains the necessary fields to permanently delete
+    a character from the system.
+
+    Attributes:
+        user_id (str):
+            Unique identifier of the user who owns the character.
+        character_id (str):
+            Unique identifier of the character to delete.
     """
     user_id: str
     character_id: str
@@ -89,7 +132,15 @@ class UpdateCharacterNameRequest(BaseModel):
     """Request model for updating character name.
 
     This model contains the necessary fields to update a character's
-    name.
+    display name in the system.
+
+    Attributes:
+        user_id (str):
+            Unique identifier of the user who owns the character.
+        character_id (str):
+            Unique identifier of the character to update.
+        character_name (str):
+            New name for the character.
     """
     user_id: str
     character_id: str
@@ -99,7 +150,15 @@ class UpdateCharacterAvatarRequest(BaseModel):
     """Request model for updating character avatar.
 
     This model contains the necessary fields to update a character's
-    avatar.
+    avatar image or visual representation.
+
+    Attributes:
+        user_id (str):
+            Unique identifier of the user who owns the character.
+        character_id (str):
+            Unique identifier of the character to update.
+        avatar (str):
+            New avatar identifier or path for the character.
     """
     user_id: str
     character_id: str

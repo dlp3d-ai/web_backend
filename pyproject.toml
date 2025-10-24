@@ -25,8 +25,11 @@ dependencies = [
     "setuptools-protobuf",    
     # Cloud services and storage
     "boto3",
+    "aioboto3",
     "watchtower",
-    "minio"
+    "minio",
+    "pydantic==2.12.1",
+    "pydantic[email]"
 ]
 
 [project.optional-dependencies]

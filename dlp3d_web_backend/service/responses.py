@@ -12,8 +12,11 @@ class RegisterUserResponse(BaseModel):
     Attributes:
         user_id (str):
             Unique identifier for the newly registered user.
+        confirmation_required (bool):
+            Whether the user needs to confirm their registration.
     """
     user_id: str
+    confirmation_required: bool
 
 class AuthenticateUserResponse(BaseModel):
     """Response model for user authentication operation.
@@ -26,6 +29,18 @@ class AuthenticateUserResponse(BaseModel):
             Unique identifier for the authenticated user.
     """
     user_id: str
+
+class UpdateUserPasswordResponse(BaseModel):
+    """Response model for user password update operation.
+
+    This model contains the response data returned after
+    successfully updating a user's password at database.
+
+    Attributes:
+        confirmation_required (bool):
+            Whether the user needs to confirm their password update.
+    """
+    confirmation_required: bool
 
 class ListUsersResponse(BaseModel):
     """Response model for user list retrieval operation.
