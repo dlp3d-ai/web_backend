@@ -258,12 +258,12 @@ class UpdateCharacterMemoryRequest(BaseModel):
     memory_model_override: str = ''
 
 class UpdateUserConfigRequest(BaseModel):
-    """Request model for updating user API key configuration.
+    """Request model for updating user API key and settings configuration.
 
-    This model contains all the API keys and authentication credentials
-    for various AI services and third-party integrations. All fields
-    are optional and default to None, allowing partial updates without
-    affecting existing configurations.
+    This model contains all the API keys and user settings for various AI services
+    and third-party integrations, including timezone configuration. All fields
+    are optional and default to None, allowing partial updates without affecting
+    existing configurations.
     """
     user_id: str
     openai_api_key: str | None = None
@@ -281,6 +281,7 @@ class UpdateUserConfigRequest(BaseModel):
     sense_tts_api_key: str | None = None
     nova_tts_api_key: str | None = None
     elevenlabs_api_key: str | None = None
+    timezone: str | None = None
 
 
 class VersionV1Request(BaseModel):

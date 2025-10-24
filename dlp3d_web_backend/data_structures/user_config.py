@@ -2,13 +2,11 @@ from pydantic import BaseModel
 
 
 class UserConfig(BaseModel):
-    """User configuration model for API keys and service credentials.
+    """User configuration model for storing API keys and user settings.
 
-    This model stores all the necessary API keys and authentication
-    credentials for various AI services and third-party integrations
-    that the user has configured. All API key fields default to empty
-    strings and can be updated independently without affecting other
-    service configurations.
+    This model contains various API keys for different AI services and platforms,
+    along with user-specific configuration such as timezone. All API key fields
+    are optional and default to empty strings for security purposes.
     """
     user_id: str
     openai_api_key: str = ''
@@ -26,3 +24,4 @@ class UserConfig(BaseModel):
     sense_tts_api_key: str = ''
     nova_tts_api_key: str = ''
     elevenlabs_api_key: str = ''
+    timezone: str = 'Asia/Shanghai'

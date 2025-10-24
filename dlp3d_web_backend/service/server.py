@@ -861,7 +861,8 @@ class FastAPIServer(Super):
                 for character in self.default_character_configs:
                     character_id = str(uuid.uuid4())
                     unix_timestamp = time.time()
-                    shanghai_tz = pytz.timezone("Asia/Shanghai")
+                    # timezone is determined by default user config
+                    shanghai_tz = pytz.timezone(user_config.timezone)
                     time_str = datetime.fromtimestamp(
                         unix_timestamp, shanghai_tz).strftime(
                             "%Y-%m-%d %H:%M:%S,%f")[:-3]
@@ -1698,7 +1699,7 @@ class FastAPIServer(Super):
     async def update_user_config(
             self,
             request: UpdateUserConfigRequest) -> Response:
-        """Update user API key configuration.
+        """Update user API key or timezone configuration.
 
         This method updates only the non-None fields in the request,
         preserving existing values for fields that are None.
