@@ -41,6 +41,22 @@ class ConfirmRegistrationResponse(BaseModel):
     auth_code: int = 200
     auth_msg: str = ""
 
+class ResendConfirmationCodeResponse(BaseModel):
+    """Response model for resending confirmation code operation.
+
+    This model contains the response data returned after successfully
+    resending the confirmation code to the user's email address.
+
+    Attributes:
+        auth_code (int):
+            Authentication status code. Defaults to 200 for success.
+        auth_msg (str):
+            Authentication message providing additional information.
+            Defaults to empty string.
+    """
+    auth_code: int = 200
+    auth_msg: str = ""
+
 class AuthenticateUserResponse(BaseModel):
     """Response model for user authentication operation.
 

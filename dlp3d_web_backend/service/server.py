@@ -52,6 +52,7 @@ from .requests import (
     MeshV1Request,
     MotionFileV1Request,
     RegisterUserRequest,
+    ResendConfirmationCodeRequest,
     RestposeV1Request,
     RigidsMetaV1Request,
     UpdateCharacterASRRequest,
@@ -78,6 +79,7 @@ from .responses import (
     ListUsersResponse,
     MotionKeywordsV1Response,
     RegisterUserResponse,
+    ResendConfirmationCodeResponse,
     UpdateUserPasswordResponse,
 )
 
@@ -376,6 +378,19 @@ class FastAPIServer(Super):
                     200: {
                         "description": "Success",
                         "model": ConfirmRegistrationResponse
+                    },
+                    **OPENAPI_RESPONSE_503
+                },
+            )
+            router.add_api_route(
+                "/api/v1/resend_confirmation_code",
+                self.resend_confirmation_code,
+                methods=["POST"],
+                response_model=ResendConfirmationCodeResponse,
+                responses={
+                    200: {
+                        "description": "Success",
+                        "model": ResendConfirmationCodeResponse
                     },
                     **OPENAPI_RESPONSE_503
                 },
@@ -846,6 +861,60 @@ class FastAPIServer(Super):
                 frontend_msg = details.split(" - ")[-1]
                 frontend_code = 500
                 return ConfirmRegistrationResponse(
+                    auth_code=frontend_code,
+                    auth_msg=frontend_msg,
+                )
+
+    async def resend_confirmation_code(
+            self,
+            request: ResendConfirmationCodeRequest) -> ResendConfirmationCodeResponse:
+        """Resend confirmation code to user's email address.
+
+        This method resends the confirmation code to the user's email address
+        for account verification. It uses AWS Cognito to handle the resend
+        operation and provides appropriate error handling for various failure
+        scenarios.
+
+        Args:
+            request (ResendConfirmationCodeRequest):
+                Request containing the user's email address for resending
+                the confirmation code.
+
+        Returns:
+            ResendConfirmationCodeResponse:
+                Response containing the operation status. Returns auth_code
+                200 on success, 500 on error with appropriate error message.
+        """
+        async with self.aioboto3_session.client(
+                'cognito-idp', region_name=self.aws_region) as cognito_client:
+            loop = asyncio.get_running_loop()
+            hashed_username = await loop.run_in_executor(
+                self.executor,
+                str_to_md5,
+                request.email)
+            secret_hash = await loop.run_in_executor(
+                self.executor,
+                get_secret_hash,
+                hashed_username,
+                self.aws_cognito_client_id,
+                self.aws_cognito_secret_key)
+            try:
+                await cognito_client.resend_confirmation_code(
+                    ClientId=self.aws_cognito_client_id,
+                    SecretHash=secret_hash,
+                    Username=hashed_username,
+                )
+                return ResendConfirmationCodeResponse(
+                    auth_code=200,
+                )
+            except ClientError as e:
+                error_code = e.response['Error']['Code']
+                details = e.response['Error']['Message']
+                self.logger.error(
+                    f"Cognito confirm sign up error: {error_code} - {details}")
+                frontend_msg = details.split(" - ")[-1]
+                frontend_code = 500
+                return ResendConfirmationCodeResponse(
                     auth_code=frontend_code,
                     auth_msg=frontend_msg,
                 )

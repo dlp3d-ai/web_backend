@@ -50,6 +50,18 @@ class ConfirmRegistrationRequest(BaseModel):
     email: EmailStr
     confirmation_code: str
 
+class ResendConfirmationCodeRequest(BaseModel):
+    """Request model for resending confirmation code.
+
+    This model contains the necessary fields to resend the confirmation code
+    to the user's email address.
+
+    Attributes:
+        email (EmailStr):
+            Email of the user to resend the confirmation code to.
+    """
+    email: EmailStr
+
 class UpdateUserPasswordRequest(BaseModel):
     """Request model for updating user password.
 
