@@ -37,7 +37,6 @@ from .exceptions import (
     OPENAPI_RESPONSE_503,
     NoCharacterException,
     NoLogFileException,
-    NoUserException,
     ReadOnlyCharacterException,
     register_error_handlers,
 )
@@ -1189,10 +1188,6 @@ class FastAPIServer(Super):
             DeleteUserResponse:
                 Response containing the deleted user ID and operation status.
                 Returns auth_code 200 on success, 500 on error.
-
-        Raises:
-            NoUserException:
-                Raised when no user data is found for the specified user_id.
         """
         user_id = request.user_id
         if self.aws_cognito_enabled:
@@ -1343,9 +1338,13 @@ class FastAPIServer(Super):
                 f"Deleted {n_characters} characters for user {user_id}.")
             if len(exception_msg) > 0:
                 self.logger.error(exception_msg)
-                raise NoUserException(status_code=404, detail=exception_msg)
-        response = Response()
-        return response
+                frontend_msg = exception_msg
+                frontend_code = 500
+                return DeleteUserResponse(
+                    auth_code=frontend_code,
+                    auth_msg=frontend_msg,
+                )
+        response = DeleteUserResponse(user_id=user_id, auth_code=200, auth_msg="")
 
     async def duplicate_character(
             self, request: DuplicateCharacterRequest) -> DuplicateCharacterResponse:

@@ -95,14 +95,6 @@ class ReadOnlyCharacterException(HTTPException):
     """
     pass
 
-class NoUserException(HTTPException):
-    """Exception raised when no user is found.
-
-    This exception is raised when the server attempts to delete a user
-    but the user does not exist.
-    """
-    pass
-
 class NoCharacterException(HTTPException):
     """Exception raised when no character is found.
 
@@ -230,6 +222,5 @@ def register_error_handlers(app: FastAPI):
     app.add_exception_handler(ReadOnlyCharacterException, http_exception_handler)
     app.add_exception_handler(RequestValidationError,
                               validation_exception_handler)
-    app.add_exception_handler(NoUserException, http_exception_handler)
     app.add_exception_handler(NoCharacterException, http_exception_handler)
     app.add_exception_handler(Exception, exception_handler)
