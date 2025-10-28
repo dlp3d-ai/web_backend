@@ -716,6 +716,8 @@ class FastAPIServer(Super):
                 frontend_msg = ""
                 for error_dict in details:
                     location = error_dict.get('loc')
+                    if isinstance(location, tuple) and len(location) > 0:
+                        location = location[0]
                     msg = error_dict.get('msg')
                     if location and msg:
                         frontend_msg += f"{location}: {msg}\n"
@@ -913,6 +915,8 @@ class FastAPIServer(Super):
                 frontend_msg = ""
                 for error_dict in details:
                     location = error_dict.get('loc')
+                    if isinstance(location, tuple) and len(location) > 0:
+                        location = location[0]
                     msg = error_dict.get('msg')
                     if location and msg:
                         frontend_msg += f"{location}: {msg}\n"
@@ -935,6 +939,8 @@ class FastAPIServer(Super):
                 frontend_msg = ""
                 for error_dict in details:
                     location = error_dict.get('loc')
+                    if isinstance(location, tuple) and len(location) > 0:
+                        location = location[0]
                     msg = error_dict.get('msg')
                     if location and msg:
                         frontend_msg += f"{location}: {msg}\n"
@@ -1047,6 +1053,8 @@ class FastAPIServer(Super):
                 frontend_msg = ""
                 for error_dict in details:
                     location = error_dict.get('loc')
+                    if isinstance(location, tuple) and len(location) > 0:
+                        location = location[0]
                     msg = error_dict.get('msg')
                     if location and msg:
                         frontend_msg += f"{location}: {msg}\n"
