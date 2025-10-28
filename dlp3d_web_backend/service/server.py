@@ -371,11 +371,11 @@ class FastAPIServer(Super):
                 "/api/v1/confirm_registration",
                 self.confirm_registration,
                 methods=["POST"],
-                response_model=RegisterUserResponse,
+                response_model=ConfirmRegistrationResponse,
                 responses={
                     200: {
                         "description": "Success",
-                        "model": RegisterUserResponse
+                        "model": ConfirmRegistrationResponse
                     },
                     **OPENAPI_RESPONSE_503
                 },
