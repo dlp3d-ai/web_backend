@@ -71,6 +71,7 @@ from .requests import (
 from .responses import (
     AuthenticateUserResponse,
     ConfirmRegistrationResponse,
+    DeleteUserResponse,
     DuplicateCharacterResponse,
     GetAvailableProvidersResponse,
     GetCharacterConfigResponse,
@@ -741,18 +742,32 @@ class FastAPIServer(Super):
                     hashed_username,
                     self.aws_cognito_client_id,
                     self.aws_cognito_secret_key)
-                response = await cognito_client.sign_up(
-                    ClientId=self.aws_cognito_client_id,
-                    SecretHash=secret_hash,
-                    Username=hashed_username,
-                    Password=request.password,
-                    UserAttributes=[
-                        {
-                            'Name': 'email',
-                            'Value': request.username
-                        }
-                    ]
-                )
+                try:
+                    response = await cognito_client.sign_up(
+                        ClientId=self.aws_cognito_client_id,
+                        SecretHash=secret_hash,
+                        Username=hashed_username,
+                        Password=request.password,
+                        UserAttributes=[
+                            {
+                                'Name': 'email',
+                                'Value': request.username
+                            }
+                        ]
+                    )
+                except ClientError as e:
+                    error_code = e.response['Error']['Code']
+                    details = e.response['Error']['Message']
+                    self.logger.error(
+                        f"Cognito sign up error: {error_code} - {details}")
+                    frontend_msg = details.split(" - ")[-1]
+                    frontend_code = 500
+                    return RegisterUserResponse(
+                        user_id="",
+                        confirmation_required=False,
+                        auth_code=frontend_code,
+                        auth_msg=frontend_msg,
+                    )
             user_id = response.get('UserSub')
             return RegisterUserResponse(user_id=user_id, confirmation_required=True)
         else:
@@ -1158,31 +1173,130 @@ class FastAPIServer(Super):
         await self._ensure_user_app_initialized(user_id)
         return AuthenticateUserResponse(user_id=user_id)
 
-    async def delete_user(self, request: DeleteUserRequest) -> Response:
-        """Delete a user and all associated data from the database.
+    async def delete_user(self, request: DeleteUserRequest) -> DeleteUserResponse:
+        """Delete a user and all associated data from the system.
 
-        This method removes user data from MongoDB including credentials (if not using
-        AWS Cognito), user configuration, and all associated characters. For AWS Cognito
-        mode, user deletion in Cognito is not supported and
-        only MongoDB data is removed.
+        This method permanently deletes a user account and all associated data
+        including user configuration, credentials, and characters. The deletion
+        process includes authentication verification to ensure only the user
+        themselves can delete their account.
 
         Args:
             request (DeleteUserRequest):
-                Request containing user ID to delete.
+                Request containing username, password, and user_id for deletion.
 
         Returns:
-            Response:
-                Empty response indicating successful deletion.
+            DeleteUserResponse:
+                Response containing the deleted user ID and operation status.
+                Returns auth_code 200 on success, 500 on error.
 
         Raises:
             NoUserException:
-                If no user data is found in any collection for the specified user_id.
+                Raised when no user data is found for the specified user_id.
         """
         user_id = request.user_id
         if self.aws_cognito_enabled:
-            msg = 'User deletion in AWS Cognito is not supported through this API. ' + \
-                'Please use AWS Console or AWS CLI to delete users from the User Pool.'
-            self.logger.warning(msg)
+            authenticate_dict = dict(
+                username=request.username,
+                password=request.password,
+            )
+            try:
+                EmailAuthenticateUserRequest.model_validate(authenticate_dict)
+            except ValidationError as e:
+                details = e.errors(include_url=False, include_context=False)
+                msg = f'Invalid request format: {details}'
+                self.logger.error(msg)
+                frontend_msg = ""
+                for error_dict in details:
+                    location = error_dict.get('loc')
+                    if isinstance(location, tuple) and len(location) > 0:
+                        location = location[0]
+                    msg = error_dict.get('msg')
+                    if location and msg:
+                        frontend_msg += f"{location}: {msg}\n"
+                frontend_code = 500
+                return DeleteUserResponse(
+                    auth_code=frontend_code,
+                    auth_msg=frontend_msg,
+                    )
+            async with self.aioboto3_session.client(
+                    'cognito-idp', region_name=self.aws_region) as cognito_client:
+                loop = asyncio.get_running_loop()
+                hashed_username = await loop.run_in_executor(
+                    self.executor,
+                    str_to_md5,
+                    request.username)
+                secret_hash = await loop.run_in_executor(
+                    self.executor,
+                    get_secret_hash,
+                    hashed_username,
+                    self.aws_cognito_client_id,
+                    self.aws_cognito_secret_key)
+                try:
+                    response = await cognito_client.initiate_auth(
+                        ClientId=self.aws_cognito_client_id,
+                        AuthFlow='USER_PASSWORD_AUTH',
+                        AuthParameters={
+                            'USERNAME': hashed_username,
+                            'PASSWORD': request.password,
+                            'SECRET_HASH': secret_hash
+                        }
+                    )
+                except ClientError as e:
+                    error_code = e.response['Error']['Code']
+                    details = e.response['Error']['Message']
+                    self.logger.error(
+                        f"Cognito initiate auth error: {error_code} - {details}")
+                    frontend_msg = details.split(" - ")[-1]
+                    frontend_code = 500
+                    return DeleteUserResponse(
+                        auth_code=frontend_code,
+                        auth_msg=frontend_msg,
+                    )
+                auth_result = response.get('AuthenticationResult', {})
+                access_token = auth_result.get('AccessToken')
+                user_info_response = await cognito_client.get_user(
+                    AccessToken=access_token)
+                user_attr = user_info_response['UserAttributes']
+                user_id = None
+                for attr_dict in user_attr:
+                    if attr_dict['Name'] == 'sub':
+                        user_id = attr_dict['Value']
+                        break
+                if user_id is None:
+                    msg = "User ID not found in AWS Cognito user attributes."
+                    self.logger.error(msg)
+                    frontend_msg = "User ID not found."
+                    frontend_code = 500
+                    return DeleteUserResponse(
+                        auth_code=frontend_code,
+                        auth_msg=frontend_msg,
+                    )
+                if user_id != request.user_id:
+                    msg = f"User ID in request {request.user_id} mismatch " +\
+                        f"with user ID in AWS Cognito {user_id}."
+                    self.logger.error(msg)
+                    frontend_msg = "User ID mismatch."
+                    frontend_code = 500
+                    return DeleteUserResponse(
+                        auth_code=frontend_code,
+                        auth_msg=frontend_msg,
+                    )
+                try:
+                    response = await cognito_client.delete_user(
+                        AccessToken=access_token
+                    )
+                except ClientError as e:
+                    error_code = e.response['Error']['Code']
+                    details = e.response['Error']['Message']
+                    self.logger.error(
+                        f"Cognito delete user error: {error_code} - {details}")
+                    frontend_msg = details.split(" - ")[-1]
+                    frontend_code = 500
+                    return DeleteUserResponse(
+                        auth_code=frontend_code,
+                        auth_msg=frontend_msg,
+                    )
         else:
             async with AsyncMongoClient(
                     host=self.mongodb_host,

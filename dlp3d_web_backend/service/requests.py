@@ -90,9 +90,15 @@ class DeleteUserRequest(BaseModel):
     associated data from the system.
 
     Attributes:
+        username (str):
+            Username for authentication.
+        password (str):
+            Password for authentication.
         user_id (str):
             Unique identifier of the user to be deleted.
     """
+    username: str
+    password: str
     user_id: str
 
 class DuplicateCharacterRequest(BaseModel):

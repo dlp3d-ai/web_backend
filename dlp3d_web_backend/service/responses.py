@@ -41,7 +41,6 @@ class ConfirmRegistrationResponse(BaseModel):
     auth_code: int = 200
     auth_msg: str = ""
 
-
 class AuthenticateUserResponse(BaseModel):
     """Response model for user authentication operation.
 
@@ -60,6 +59,26 @@ class AuthenticateUserResponse(BaseModel):
     user_id: str
     auth_code: int = 200
     auth_msg: str = ""
+
+class DeleteUserResponse(BaseModel):
+    """Response model for user deletion operation.
+
+    This model contains the response data returned after successfully
+    deleting a user, including the user ID for the deleted user.
+
+    Attributes:
+        user_id (str):
+            Unique identifier for the deleted user.
+        auth_code (int):
+            Authentication status code. Defaults to 200 for success.
+        auth_msg (str):
+            Authentication message providing additional information.
+            Defaults to empty string.
+    """
+    user_id: str
+    auth_code: int = 200
+    auth_msg: str = ""
+
 
 class UpdateUserPasswordResponse(BaseModel):
     """Response model for user password update operation.
