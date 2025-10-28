@@ -1419,7 +1419,7 @@ class FastAPIServer(Super):
                     auth_code=frontend_code,
                     auth_msg=frontend_msg,
                 )
-        response = DeleteUserResponse(user_id=user_id, auth_code=200, auth_msg="")
+        return DeleteUserResponse(user_id=user_id, auth_code=200, auth_msg="")
 
     async def duplicate_character(
             self, request: DuplicateCharacterRequest) -> DuplicateCharacterResponse:
