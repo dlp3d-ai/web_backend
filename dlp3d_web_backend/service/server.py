@@ -555,7 +555,6 @@ class FastAPIServer(Super):
                 200: {
                     "description": "Success"
                 },
-                **OPENAPI_RESPONSE_404
             },
         )
         router.add_api_route(
@@ -1280,6 +1279,7 @@ class FastAPIServer(Super):
                         frontend_msg += f"{location}: {msg}\n"
                 frontend_code = 500
                 return DeleteUserResponse(
+                    user_id=user_id,
                     auth_code=frontend_code,
                     auth_msg=frontend_msg,
                     )
@@ -1314,6 +1314,7 @@ class FastAPIServer(Super):
                     frontend_msg = details.split(" - ")[-1]
                     frontend_code = 500
                     return DeleteUserResponse(
+                        user_id=user_id,
                         auth_code=frontend_code,
                         auth_msg=frontend_msg,
                     )
@@ -1328,11 +1329,13 @@ class FastAPIServer(Super):
                         user_id = attr_dict['Value']
                         break
                 if user_id is None:
-                    msg = "User ID not found in AWS Cognito user attributes."
+                    msg = f"User ID in request {request.user_id} not found " +\
+                        "in AWS Cognito user attributes."
                     self.logger.error(msg)
                     frontend_msg = "User ID not found."
                     frontend_code = 500
                     return DeleteUserResponse(
+                        user_id=user_id,
                         auth_code=frontend_code,
                         auth_msg=frontend_msg,
                     )
@@ -1343,6 +1346,7 @@ class FastAPIServer(Super):
                     frontend_msg = "User ID mismatch."
                     frontend_code = 500
                     return DeleteUserResponse(
+                        user_id=user_id,
                         auth_code=frontend_code,
                         auth_msg=frontend_msg,
                     )
@@ -1358,6 +1362,7 @@ class FastAPIServer(Super):
                     frontend_msg = details.split(" - ")[-1]
                     frontend_code = 500
                     return DeleteUserResponse(
+                        user_id=user_id,
                         auth_code=frontend_code,
                         auth_msg=frontend_msg,
                     )
@@ -1410,6 +1415,7 @@ class FastAPIServer(Super):
                 frontend_msg = exception_msg
                 frontend_code = 500
                 return DeleteUserResponse(
+                    user_id=user_id,
                     auth_code=frontend_code,
                     auth_msg=frontend_msg,
                 )
