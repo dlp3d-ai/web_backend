@@ -87,30 +87,6 @@ class NoLogFileException(HTTPException):
     """
     pass
 
-class UserAlreadyExistsException(HTTPException):
-    """Exception raised when a username already exists.
-
-    This exception is raised when the server attempts to register a user
-    with a username that already exists.
-    """
-    pass
-
-class UsernameNotFoundException(HTTPException):
-    """Exception raised when a username is not found.
-
-    This exception is raised when the server attempts to authenticate a user
-    with a username that does not exist.
-    """
-    pass
-
-class AuthenticationFailedException(HTTPException):
-    """Exception raised when authentication failed.
-
-    This exception is raised when the server attempts to authenticate a user
-    with a username and password that do not match.
-    """
-    pass
-
 class ReadOnlyCharacterException(HTTPException):
     """Exception raised when attempting to modify a read-only character.
 
@@ -132,22 +108,6 @@ class NoCharacterException(HTTPException):
 
     This exception is raised when the server attempts to delete a character
     but the character does not exist.
-    """
-    pass
-
-class EmailAuthenticationFormatException(HTTPException):
-    """Exception raised when email authentication format is invalid.
-
-    This exception is raised when the server attempts to authenticate a user
-    with an email address that is not in the correct format.
-    """
-    pass
-
-class AWSRegistrationException(HTTPException):
-    """Exception raised when AWS registration fails.
-
-    This exception is raised when the server attempts to register a user
-    with an email address that is not in the correct format.
     """
     pass
 
@@ -270,12 +230,6 @@ def register_error_handlers(app: FastAPI):
     app.add_exception_handler(ReadOnlyCharacterException, http_exception_handler)
     app.add_exception_handler(RequestValidationError,
                               validation_exception_handler)
-    app.add_exception_handler(UserAlreadyExistsException, http_exception_handler)
-    app.add_exception_handler(UsernameNotFoundException, http_exception_handler)
-    app.add_exception_handler(AuthenticationFailedException, http_exception_handler)
     app.add_exception_handler(NoUserException, http_exception_handler)
     app.add_exception_handler(NoCharacterException, http_exception_handler)
-    app.add_exception_handler(
-        EmailAuthenticationFormatException, http_exception_handler)
-    app.add_exception_handler(AWSRegistrationException, http_exception_handler)
     app.add_exception_handler(Exception, exception_handler)
