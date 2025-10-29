@@ -14,9 +14,48 @@ class RegisterUserResponse(BaseModel):
             Unique identifier for the newly registered user.
         confirmation_required (bool):
             Whether the user needs to confirm their registration.
+        auth_code (int):
+            Authentication status code. Defaults to 200 for success.
+        auth_msg (str):
+            Authentication message providing additional information.
+            Defaults to empty string.
     """
     user_id: str
     confirmation_required: bool
+    auth_code: int = 200
+    auth_msg: str = ""
+
+class ConfirmRegistrationResponse(BaseModel):
+    """Response model for user confirmation registration operation.
+
+    This model contains the response data returned after successfully
+    confirming a user's registration, including the authentication code and message.
+
+    Attributes:
+        auth_code (int):
+            Authentication status code. Defaults to 200 for success.
+        auth_msg (str):
+            Authentication message providing additional information.
+            Defaults to empty string.
+    """
+    auth_code: int = 200
+    auth_msg: str = ""
+
+class ResendConfirmationCodeResponse(BaseModel):
+    """Response model for resending confirmation code operation.
+
+    This model contains the response data returned after successfully
+    resending the confirmation code to the user's email address.
+
+    Attributes:
+        auth_code (int):
+            Authentication status code. Defaults to 200 for success.
+        auth_msg (str):
+            Authentication message providing additional information.
+            Defaults to empty string.
+    """
+    auth_code: int = 200
+    auth_msg: str = ""
 
 class AuthenticateUserResponse(BaseModel):
     """Response model for user authentication operation.
@@ -27,8 +66,35 @@ class AuthenticateUserResponse(BaseModel):
     Attributes:
         user_id (str):
             Unique identifier for the authenticated user.
+        auth_code (int):
+            Authentication status code. Defaults to 200 for success.
+        auth_msg (str):
+            Authentication message providing additional information.
+            Defaults to empty string.
     """
     user_id: str
+    auth_code: int = 200
+    auth_msg: str = ""
+
+class DeleteUserResponse(BaseModel):
+    """Response model for user deletion operation.
+
+    This model contains the response data returned after successfully
+    deleting a user, including the user ID for the deleted user.
+
+    Attributes:
+        user_id (str):
+            Unique identifier for the deleted user.
+        auth_code (int):
+            Authentication status code. Defaults to 200 for success.
+        auth_msg (str):
+            Authentication message providing additional information.
+            Defaults to empty string.
+    """
+    user_id: str
+    auth_code: int = 200
+    auth_msg: str = ""
+
 
 class UpdateUserPasswordResponse(BaseModel):
     """Response model for user password update operation.
@@ -39,8 +105,15 @@ class UpdateUserPasswordResponse(BaseModel):
     Attributes:
         confirmation_required (bool):
             Whether the user needs to confirm their password update.
+        auth_code (int):
+            Authentication status code. Defaults to 200 for success.
+        auth_msg (str):
+            Authentication message providing additional information.
+            Defaults to empty string.
     """
     confirmation_required: bool
+    auth_code: int = 200
+    auth_msg: str = ""
 
 class ListUsersResponse(BaseModel):
     """Response model for user list retrieval operation.

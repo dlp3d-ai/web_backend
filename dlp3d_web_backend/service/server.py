@@ -35,15 +35,9 @@ from .exceptions import (
     OPENAPI_RESPONSE_400,
     OPENAPI_RESPONSE_404,
     OPENAPI_RESPONSE_503,
-    AuthenticationFailedException,
-    AWSRegistrationException,
-    EmailAuthenticationFormatException,
     NoCharacterException,
     NoLogFileException,
-    NoUserException,
     ReadOnlyCharacterException,
-    UserAlreadyExistsException,
-    UsernameNotFoundException,
     register_error_handlers,
 )
 from .requests import (
@@ -58,6 +52,7 @@ from .requests import (
     MeshV1Request,
     MotionFileV1Request,
     RegisterUserRequest,
+    ResendConfirmationCodeRequest,
     RestposeV1Request,
     RigidsMetaV1Request,
     UpdateCharacterASRRequest,
@@ -75,6 +70,8 @@ from .requests import (
 )
 from .responses import (
     AuthenticateUserResponse,
+    ConfirmRegistrationResponse,
+    DeleteUserResponse,
     DuplicateCharacterResponse,
     GetAvailableProvidersResponse,
     GetCharacterConfigResponse,
@@ -82,6 +79,7 @@ from .responses import (
     ListUsersResponse,
     MotionKeywordsV1Response,
     RegisterUserResponse,
+    ResendConfirmationCodeResponse,
     UpdateUserPasswordResponse,
 )
 
@@ -375,11 +373,24 @@ class FastAPIServer(Super):
                 "/api/v1/confirm_registration",
                 self.confirm_registration,
                 methods=["POST"],
-                response_model=RegisterUserResponse,
+                response_model=ConfirmRegistrationResponse,
                 responses={
                     200: {
                         "description": "Success",
-                        "model": RegisterUserResponse
+                        "model": ConfirmRegistrationResponse
+                    },
+                    **OPENAPI_RESPONSE_503
+                },
+            )
+            router.add_api_route(
+                "/api/v1/resend_confirmation_code",
+                self.resend_confirmation_code,
+                methods=["POST"],
+                response_model=ResendConfirmationCodeResponse,
+                responses={
+                    200: {
+                        "description": "Success",
+                        "model": ResendConfirmationCodeResponse
                     },
                     **OPENAPI_RESPONSE_503
                 },
@@ -544,7 +555,6 @@ class FastAPIServer(Super):
                 200: {
                     "description": "Success"
                 },
-                **OPENAPI_RESPONSE_404
             },
         )
         router.add_api_route(
@@ -709,14 +719,6 @@ class FastAPIServer(Super):
         Returns:
             RegisterUserResponse:
                 Response containing user ID and confirmation requirement status.
-
-        Raises:
-            EmailAuthenticationFormatException:
-                If request format is invalid for AWS Cognito mode.
-            UserAlreadyExistsException:
-                If username already exists in MongoDB mode.
-            AWSRegistrationException:
-                If AWS Cognito registration fails.
         """
         if self.aws_cognito_enabled:
             try:
@@ -725,8 +727,21 @@ class FastAPIServer(Super):
                 details = e.errors(include_url=False, include_context=False)
                 msg = f'Invalid request format: {details}'
                 self.logger.error(msg)
-                raise EmailAuthenticationFormatException(
-                    status_code=400, detail=msg) from e
+                frontend_msg = ""
+                for error_dict in details:
+                    location = error_dict.get('loc')
+                    if isinstance(location, tuple) and len(location) > 0:
+                        location = location[0]
+                    msg = error_dict.get('msg')
+                    if location and msg:
+                        frontend_msg += f"{location}: {msg}\n"
+                frontend_code = 500
+                return RegisterUserResponse(
+                    user_id="",
+                    confirmation_required=False,
+                    auth_code=frontend_code,
+                    auth_msg=frontend_msg,
+                    )
             async with self.aioboto3_session.client(
                     'cognito-idp', region_name=self.aws_region) as cognito_client:
                 loop = asyncio.get_running_loop()
@@ -740,18 +755,32 @@ class FastAPIServer(Super):
                     hashed_username,
                     self.aws_cognito_client_id,
                     self.aws_cognito_secret_key)
-                response = await cognito_client.sign_up(
-                    ClientId=self.aws_cognito_client_id,
-                    SecretHash=secret_hash,
-                    Username=hashed_username,
-                    Password=request.password,
-                    UserAttributes=[
-                        {
-                            'Name': 'email',
-                            'Value': request.username
-                        }
-                    ]
-                )
+                try:
+                    response = await cognito_client.sign_up(
+                        ClientId=self.aws_cognito_client_id,
+                        SecretHash=secret_hash,
+                        Username=hashed_username,
+                        Password=request.password,
+                        UserAttributes=[
+                            {
+                                'Name': 'email',
+                                'Value': request.username
+                            }
+                        ]
+                    )
+                except ClientError as e:
+                    error_code = e.response['Error']['Code']
+                    details = e.response['Error']['Message']
+                    self.logger.error(
+                        f"Cognito sign up error: {error_code} - {details}")
+                    frontend_msg = details.split(" - ")[-1]
+                    frontend_code = 500
+                    return RegisterUserResponse(
+                        user_id="",
+                        confirmation_required=False,
+                        auth_code=frontend_code,
+                        auth_msg=frontend_msg,
+                    )
             user_id = response.get('UserSub')
             return RegisterUserResponse(user_id=user_id, confirmation_required=True)
         else:
@@ -770,7 +799,14 @@ class FastAPIServer(Super):
                         {"username": request.username}) > 0:
                     msg = f"Username {request.username} already exists."
                     self.logger.error(msg)
-                    raise UserAlreadyExistsException(status_code=400, detail=msg)
+                    frontend_msg = msg
+                    frontend_code = 500
+                    return RegisterUserResponse(
+                        user_id="",
+                        confirmation_required=False,
+                        auth_code=frontend_code,
+                        auth_msg=frontend_msg,
+                    )
                 credential = UserCredential(
                     username=request.username,
                     password=request.password,
@@ -779,7 +815,7 @@ class FastAPIServer(Super):
             return RegisterUserResponse(user_id=user_id, confirmation_required=False)
 
     async def confirm_registration(
-            self, request: ConfirmRegistrationRequest) -> Response:
+            self, request: ConfirmRegistrationRequest) -> ConfirmRegistrationResponse:
         """Confirm user registration with verification code.
 
         This method verifies the user's registration using the confirmation
@@ -790,12 +826,8 @@ class FastAPIServer(Super):
                 Request containing email and confirmation code.
 
         Returns:
-            Response:
-                Empty response indicating successful confirmation.
-
-        Raises:
-            AWSRegistrationException:
-                If confirmation code is invalid or AWS Cognito operation fails.
+            ConfirmRegistrationResponse:
+                Response containing the authentication code and message.
         """
         async with self.aioboto3_session.client(
                 'cognito-idp', region_name=self.aws_region) as cognito_client:
@@ -817,16 +849,74 @@ class FastAPIServer(Super):
                     Username=hashed_username,
                     ConfirmationCode=request.confirmation_code
                 )
-                return Response(status_code=200)
+                return ConfirmRegistrationResponse(
+                    auth_code=200,
+                )
             except ClientError as e:
                 error_code = e.response['Error']['Code']
                 details = e.response['Error']['Message']
                 self.logger.error(
                     f"Cognito confirm sign up error: {error_code} - {details}")
-                raise AWSRegistrationException(
-                    status_code=400,
-                    detail=details
-                ) from e
+                frontend_msg = details.split(" - ")[-1]
+                frontend_code = 500
+                return ConfirmRegistrationResponse(
+                    auth_code=frontend_code,
+                    auth_msg=frontend_msg,
+                )
+
+    async def resend_confirmation_code(
+            self,
+            request: ResendConfirmationCodeRequest) -> ResendConfirmationCodeResponse:
+        """Resend confirmation code to user's email address.
+
+        This method resends the confirmation code to the user's email address
+        for account verification. It uses AWS Cognito to handle the resend
+        operation and provides appropriate error handling for various failure
+        scenarios.
+
+        Args:
+            request (ResendConfirmationCodeRequest):
+                Request containing the user's email address for resending
+                the confirmation code.
+
+        Returns:
+            ResendConfirmationCodeResponse:
+                Response containing the operation status. Returns auth_code
+                200 on success, 500 on error with appropriate error message.
+        """
+        async with self.aioboto3_session.client(
+                'cognito-idp', region_name=self.aws_region) as cognito_client:
+            loop = asyncio.get_running_loop()
+            hashed_username = await loop.run_in_executor(
+                self.executor,
+                str_to_md5,
+                request.email)
+            secret_hash = await loop.run_in_executor(
+                self.executor,
+                get_secret_hash,
+                hashed_username,
+                self.aws_cognito_client_id,
+                self.aws_cognito_secret_key)
+            try:
+                await cognito_client.resend_confirmation_code(
+                    ClientId=self.aws_cognito_client_id,
+                    SecretHash=secret_hash,
+                    Username=hashed_username,
+                )
+                return ResendConfirmationCodeResponse(
+                    auth_code=200,
+                )
+            except ClientError as e:
+                error_code = e.response['Error']['Code']
+                details = e.response['Error']['Message']
+                self.logger.error(
+                    f"Cognito confirm sign up error: {error_code} - {details}")
+                frontend_msg = details.split(" - ")[-1]
+                frontend_code = 500
+                return ResendConfirmationCodeResponse(
+                    auth_code=frontend_code,
+                    auth_msg=frontend_msg,
+                )
 
     async def _ensure_user_app_initialized(
             self, user_id: str) -> None:
@@ -892,12 +982,6 @@ class FastAPIServer(Super):
         Returns:
             UpdateUserPasswordResponse:
                 Response indicating password change success and confirmation status.
-
-        Raises:
-            EmailAuthenticationFormatException:
-                If request format is invalid for AWS Cognito mode.
-            AuthenticationFailedException:
-                If AWS Cognito operation fails or current password is incorrect.
         """
         if self.aws_cognito_enabled:
             previous_pwd_dict = dict(
@@ -910,8 +994,20 @@ class FastAPIServer(Super):
                 details = e.errors(include_url=False, include_context=False)
                 msg = f'Invalid request format: {details}'
                 self.logger.error(msg)
-                raise EmailAuthenticationFormatException(
-                    status_code=400, detail=msg) from e
+                frontend_msg = ""
+                for error_dict in details:
+                    location = error_dict.get('loc')
+                    if isinstance(location, tuple) and len(location) > 0:
+                        location = location[0]
+                    msg = error_dict.get('msg')
+                    if location and msg:
+                        frontend_msg += f"{location}: {msg}\n"
+                frontend_code = 500
+                return UpdateUserPasswordResponse(
+                    confirmation_required=False,
+                    auth_code=frontend_code,
+                    auth_msg=frontend_msg,
+                    )
             proposed_pwd_dict = dict(
                 username=request.username,
                 password=request.new_password,
@@ -922,8 +1018,20 @@ class FastAPIServer(Super):
                 details = e.errors(include_url=False, include_context=False)
                 msg = f'Invalid request format: {details}'
                 self.logger.error(msg)
-                raise EmailAuthenticationFormatException(
-                    status_code=400, detail=msg) from e
+                frontend_msg = ""
+                for error_dict in details:
+                    location = error_dict.get('loc')
+                    if isinstance(location, tuple) and len(location) > 0:
+                        location = location[0]
+                    msg = error_dict.get('msg')
+                    if location and msg:
+                        frontend_msg += f"{location}: {msg}\n"
+                frontend_code = 500
+                return UpdateUserPasswordResponse(
+                    confirmation_required=False,
+                    auth_code=frontend_code,
+                    auth_msg=frontend_msg,
+                    )
             async with self.aioboto3_session.client(
                     'cognito-idp', region_name=self.aws_region) as cognito_client:
                 loop = asyncio.get_running_loop()
@@ -952,10 +1060,13 @@ class FastAPIServer(Super):
                     details = e.response['Error']['Message']
                     self.logger.error(
                         f"Cognito initiate auth error: {error_code} - {details}")
-                    raise AuthenticationFailedException(
-                        status_code=400,
-                        detail=details
-                    ) from e
+                    frontend_msg = details.split(" - ")[-1]
+                    frontend_code = 500
+                    return UpdateUserPasswordResponse(
+                        confirmation_required=False,
+                        auth_code=frontend_code,
+                        auth_msg=frontend_msg,
+                    )
                 # TODO: use AccessToken for interface authentication instead of user_id
                 auth_result = response.get('AuthenticationResult', {})
                 access_token = auth_result.get('AccessToken')
@@ -970,10 +1081,13 @@ class FastAPIServer(Super):
                     details = e.response['Error']['Message']
                     self.logger.error(
                         f"Cognito change password error: {error_code} - {details}")
-                    raise AuthenticationFailedException(
-                        status_code=400,
-                        detail=details
-                    ) from e
+                    frontend_msg = details.split(" - ")[-1]
+                    frontend_code = 500
+                    return UpdateUserPasswordResponse(
+                        confirmation_required=False,
+                        auth_code=frontend_code,
+                        auth_msg=frontend_msg,
+                    )
             return UpdateUserPasswordResponse(confirmation_required=False)
         else:
             username = request.username
@@ -1010,13 +1124,6 @@ class FastAPIServer(Super):
         Returns:
             AuthenticateUserResponse:
                 Response containing the user ID if authentication successful.
-
-        Raises:
-            AuthenticationFailedException:
-                If request format is invalid, AWS Cognito operation fails,
-                or password is incorrect.
-            UsernameNotFoundException:
-                If the username is not found in MongoDB mode.
         """
         if self.aws_cognito_enabled:
             try:
@@ -1025,7 +1132,20 @@ class FastAPIServer(Super):
                 details = e.errors(include_url=False, include_context=False)
                 msg = f'Invalid request format: {details}'
                 self.logger.error(msg)
-                raise AuthenticationFailedException(status_code=400, detail=msg) from e
+                frontend_msg = ""
+                for error_dict in details:
+                    location = error_dict.get('loc')
+                    if isinstance(location, tuple) and len(location) > 0:
+                        location = location[0]
+                    msg = error_dict.get('msg')
+                    if location and msg:
+                        frontend_msg += f"{location}: {msg}\n"
+                frontend_code = 500
+                return AuthenticateUserResponse(
+                    user_id="",
+                    auth_code=frontend_code,
+                    auth_msg=frontend_msg,
+                    )
             async with self.aioboto3_session.client(
                     'cognito-idp', region_name=self.aws_region) as cognito_client:
                 loop = asyncio.get_running_loop()
@@ -1054,10 +1174,13 @@ class FastAPIServer(Super):
                     details = e.response['Error']['Message']
                     self.logger.error(
                         f"Cognito initiate auth error: {error_code} - {details}")
-                    raise AuthenticationFailedException(
-                        status_code=400,
-                        detail=details
-                    ) from e
+                    frontend_msg = details.split(" - ")[-1]
+                    frontend_code = 500
+                    return AuthenticateUserResponse(
+                        user_id="",
+                        auth_code=frontend_code,
+                        auth_msg=frontend_msg,
+                    )
                 # TODO: use AccessToken for interface authentication instead of user_id
                 auth_result = response.get('AuthenticationResult', {})
                 access_token = auth_result.get('AccessToken')
@@ -1072,7 +1195,13 @@ class FastAPIServer(Super):
                 if user_id is None:
                     msg = "User ID not found in AWS Cognito user attributes."
                     self.logger.error(msg)
-                    raise AuthenticationFailedException(status_code=400, detail=msg)
+                    frontend_msg = "User ID not found."
+                    frontend_code = 500
+                    return AuthenticateUserResponse(
+                        user_id="",
+                        auth_code=frontend_code,
+                        auth_msg=frontend_msg,
+                    )
         else:
             async with AsyncMongoClient(
                     host=self.mongodb_host,
@@ -1088,42 +1217,155 @@ class FastAPIServer(Super):
                 if username_hit is None:
                     msg = f"Username {request.username} not found."
                     self.logger.error(msg)
-                    raise UsernameNotFoundException(status_code=400, detail=msg)
+                    frontend_msg = msg
+                    frontend_code = 500
+                    return AuthenticateUserResponse(
+                        user_id="",
+                        auth_code=frontend_code,
+                        auth_msg=frontend_msg,
+                    )
                 password_hit = await credential_collection.find_one(
                     {"username": request.username, "password": request.password})
                 if password_hit is None:
                     msg = "Password mismatch."
                     self.logger.error(msg)
-                    raise AuthenticationFailedException(status_code=400, detail=msg)
+                    frontend_msg = "Password mismatch."
+                    frontend_code = 500
+                    return AuthenticateUserResponse(
+                        user_id="",
+                        auth_code=frontend_code,
+                        auth_msg=frontend_msg,
+                    )
                 user_id = username_hit["user_id"]
         await self._ensure_user_app_initialized(user_id)
         return AuthenticateUserResponse(user_id=user_id)
 
-    async def delete_user(self, request: DeleteUserRequest) -> Response:
-        """Delete a user and all associated data from the database.
+    async def delete_user(self, request: DeleteUserRequest) -> DeleteUserResponse:
+        """Delete a user and all associated data from the system.
 
-        This method removes user data from MongoDB including credentials (if not using
-        AWS Cognito), user configuration, and all associated characters. For AWS Cognito
-        mode, user deletion in Cognito is not supported and
-        only MongoDB data is removed.
+        This method permanently deletes a user account and all associated data
+        including user configuration, credentials, and characters. The deletion
+        process includes authentication verification to ensure only the user
+        themselves can delete their account.
 
         Args:
             request (DeleteUserRequest):
-                Request containing user ID to delete.
+                Request containing username, password, and user_id for deletion.
 
         Returns:
-            Response:
-                Empty response indicating successful deletion.
-
-        Raises:
-            NoUserException:
-                If no user data is found in any collection for the specified user_id.
+            DeleteUserResponse:
+                Response containing the deleted user ID and operation status.
+                Returns auth_code 200 on success, 500 on error.
         """
         user_id = request.user_id
         if self.aws_cognito_enabled:
-            msg = 'User deletion in AWS Cognito is not supported through this API. ' + \
-                'Please use AWS Console or AWS CLI to delete users from the User Pool.'
-            self.logger.warning(msg)
+            authenticate_dict = dict(
+                username=request.username,
+                password=request.password,
+            )
+            try:
+                EmailAuthenticateUserRequest.model_validate(authenticate_dict)
+            except ValidationError as e:
+                details = e.errors(include_url=False, include_context=False)
+                msg = f'Invalid request format: {details}'
+                self.logger.error(msg)
+                frontend_msg = ""
+                for error_dict in details:
+                    location = error_dict.get('loc')
+                    if isinstance(location, tuple) and len(location) > 0:
+                        location = location[0]
+                    msg = error_dict.get('msg')
+                    if location and msg:
+                        frontend_msg += f"{location}: {msg}\n"
+                frontend_code = 500
+                return DeleteUserResponse(
+                    user_id=user_id,
+                    auth_code=frontend_code,
+                    auth_msg=frontend_msg,
+                    )
+            async with self.aioboto3_session.client(
+                    'cognito-idp', region_name=self.aws_region) as cognito_client:
+                loop = asyncio.get_running_loop()
+                hashed_username = await loop.run_in_executor(
+                    self.executor,
+                    str_to_md5,
+                    request.username)
+                secret_hash = await loop.run_in_executor(
+                    self.executor,
+                    get_secret_hash,
+                    hashed_username,
+                    self.aws_cognito_client_id,
+                    self.aws_cognito_secret_key)
+                try:
+                    response = await cognito_client.initiate_auth(
+                        ClientId=self.aws_cognito_client_id,
+                        AuthFlow='USER_PASSWORD_AUTH',
+                        AuthParameters={
+                            'USERNAME': hashed_username,
+                            'PASSWORD': request.password,
+                            'SECRET_HASH': secret_hash
+                        }
+                    )
+                except ClientError as e:
+                    error_code = e.response['Error']['Code']
+                    details = e.response['Error']['Message']
+                    self.logger.error(
+                        f"Cognito initiate auth error: {error_code} - {details}")
+                    frontend_msg = details.split(" - ")[-1]
+                    frontend_code = 500
+                    return DeleteUserResponse(
+                        user_id=user_id,
+                        auth_code=frontend_code,
+                        auth_msg=frontend_msg,
+                    )
+                auth_result = response.get('AuthenticationResult', {})
+                access_token = auth_result.get('AccessToken')
+                user_info_response = await cognito_client.get_user(
+                    AccessToken=access_token)
+                user_attr = user_info_response['UserAttributes']
+                user_id = None
+                for attr_dict in user_attr:
+                    if attr_dict['Name'] == 'sub':
+                        user_id = attr_dict['Value']
+                        break
+                if user_id is None:
+                    msg = f"User ID in request {request.user_id} not found " +\
+                        "in AWS Cognito user attributes."
+                    self.logger.error(msg)
+                    frontend_msg = "User ID not found."
+                    frontend_code = 500
+                    return DeleteUserResponse(
+                        user_id=user_id,
+                        auth_code=frontend_code,
+                        auth_msg=frontend_msg,
+                    )
+                if user_id != request.user_id:
+                    msg = f"User ID in request {request.user_id} mismatch " +\
+                        f"with user ID in AWS Cognito {user_id}."
+                    self.logger.error(msg)
+                    frontend_msg = "User ID mismatch."
+                    frontend_code = 500
+                    return DeleteUserResponse(
+                        user_id=user_id,
+                        auth_code=frontend_code,
+                        auth_msg=frontend_msg,
+                    )
+                try:
+                    response = await cognito_client.delete_user(
+                        AccessToken=access_token
+                    )
+                except ClientError as e:
+                    error_code = e.response['Error']['Code']
+                    details = e.response['Error']['Message']
+                    self.logger.error(
+                        f"Cognito delete user error: {error_code} - {details}")
+                    frontend_msg = details.split(" - ")[-1]
+                    frontend_code = 500
+                    return DeleteUserResponse(
+                        user_id=user_id,
+                        auth_code=frontend_code,
+                        auth_msg=frontend_msg,
+                    )
         else:
             async with AsyncMongoClient(
                     host=self.mongodb_host,
@@ -1170,9 +1412,14 @@ class FastAPIServer(Super):
                 f"Deleted {n_characters} characters for user {user_id}.")
             if len(exception_msg) > 0:
                 self.logger.error(exception_msg)
-                raise NoUserException(status_code=404, detail=exception_msg)
-        response = Response()
-        return response
+                frontend_msg = exception_msg
+                frontend_code = 500
+                return DeleteUserResponse(
+                    user_id=user_id,
+                    auth_code=frontend_code,
+                    auth_msg=frontend_msg,
+                )
+        return DeleteUserResponse(user_id=user_id, auth_code=200, auth_msg="")
 
     async def duplicate_character(
             self, request: DuplicateCharacterRequest) -> DuplicateCharacterResponse:
