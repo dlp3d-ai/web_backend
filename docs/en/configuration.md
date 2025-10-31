@@ -1,4 +1,3 @@
-
 # Configuration Guide
 
 ## Table of Contents
@@ -126,5 +125,3 @@ export MONGODB_ADMIN_PASSWORD=secure_admin_password
 - **Automatic setup**: The service handles database and user creation automatically on first run
 
 ---
-
-*For more information, see the [main documentation](../README.md).*
