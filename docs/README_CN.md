@@ -55,23 +55,9 @@ DLP3D Web Backend 采用模块化、分层架构。
 - **Google Drive 下载：** [motion_data.zip](https://drive.google.com/file/d/112pnjuIuNqADS-fAT6RUIAVPtb3VlWlq/view?usp=drive_link)
 - **百度网盘：** [motion_data.zip](https://pan.baidu.com/s/1YJSuLaoDKKV7JuE0Ws89zA)（提取码：`g64i`）
 
-### 下载 Audio2Face 模型文件
-
-**完整 DLP3D Web 应用必需**
-
-要实现完整的 DLP3D Web 应用功能，您还需要下载 Audio2Face 模型文件：
-
-- **GitHub 下载：** [unitalker_v0.4.0_base.onnx](https://github.com/LazyBusyYang/CatStream/releases/download/a2f_cicd_files/unitalker_v0.4.0_base.onnx)
-- **Google Drive 下载：** [unitalker_v0.4.0_base.onnx](https://drive.google.com/file/d/1E0NTrsh4mciRPb265n64Dd5vR3Sa7Dgx/view?usp=drive_link)
-- **百度网盘：** [unitalker_v0.4.0_base.onnx](https://pan.baidu.com/s/1A_vUj_ZBMFPbO1lgUYVCPA)（提取码：`shre`）
-
-> **注意**：Audio2Face 模型仅在运行完整的 DLP3D Web 应用时才需要。对于独立的 Web Backend 服务，只需要动作数据库。
-
 ### 整理数据
 
-**Web Backend 服务（必需）：**
-
-1. **解压动作数据库：**
+**解压动作数据库：**
    - 如果项目根目录中不存在 `data` 目录，请创建一个
    - 将下载的 `motion_data.zip` 文件解压到 `data` 目录中
    - 确保创建以下目录结构：
@@ -90,19 +76,6 @@ DLP3D Web Backend 采用模块化、分层架构。
 └─docs
 ```
 
-**完整 DLP3D Web 应用（可选）：**
-
-2. **整理 Audio2Face 模型：**
-   - 如果项目根目录中不存在 `weights` 目录，请创建一个
-   - 将下载的 `unitalker_v0.4.0_base.onnx` 文件放置在 `weights` 目录中
-
-```
-├─weights
-│   └─unitalker_v0.4.0_base.onnx
-├─dlp3d_web_backend
-└─docs
-```
-
 ### 目录结构说明
 
 **Web Backend 服务：**
@@ -114,40 +87,39 @@ DLP3D Web Backend 采用模块化、分层架构。
   - `motion_files/`：包含动作动画文件的目录。
   - `restpose_npz/`：用于 NPZ 格式静止姿态数据的目录。
   - `rigids_meta/`：用于刚体元数据文件的目录。
-- `weights/`：用于存储 ONNX 模型文件的目录。
-  - `unitalker_v0.4.0_base.onnx`：用于音频转面部生成的主要 ONNX 模型文件。
 
-## 快速开始
+# 快速开始
 
-### 完整的 DLP3D 后端服务
+本指南帮助您使用 Docker 快速运行网页后端服务。对于生产环境或完整的后端服务组，请考虑使用完整的 Docker Compose 方法。
 
-完成上述数据准备步骤后，您可以使用单个命令启动所有 DLP3D 后端服务：
+## 使用 Docker
 
-```bash
-# 启动所有后端服务
-docker compose up
-```
+### 推荐：使用 Docker Compose 完整服务
 
-这将启动完整的 DLP3D 后端基础设施，包括：
+为了获得最佳体验，我们推荐使用 Docker Compose 启动完整的 DLP3D 服务，其中包括网页前后端，以及所有必需的依赖项（MongoDB、Audio2Face、Speech2Motion 等）。
 
-- **MongoDB 数据库服务** - 数据存储和管理
-- **Web Backend 服务** - RESTful API 服务器（端口 18080）
-- **Orchestrator 服务** - 流式对话和动画生成（端口 18081）
-- **Speech2Motion 服务** - 从语音生成动作动画
-- **Audio2Face 服务** - 从音频生成面部动画
+请按照 [ReadTheDocs 上的快速开始指南](https://dlp3d.readthedocs.io/en/latest/getting_started/quick_start.html) 设置并运行整个基础设施。
 
-**前端连接：**
-一旦所有服务运行，您的前端应用程序只需要连接到：
-- **Backend API**：`http://localhost:18080`（Web Backend 服务）
-- **Orchestrator API**：`http://localhost:18081`（Orchestrator 服务）
+### 独立后端服务
 
-📖 **高级 Docker 用法**：如需了解更多详细的 Docker 部署选项，包括 GPU 加速、网络代理配置和故障排除，请参阅 [Docker 部署指南](docker.md)。
+如果您只需要独立运行 Web 后端服务（无需完整的 DLP3D 基础设施），可以使用 Docker 或 Docker Compose 进行设置。
+
+有关运行独立后端服务的详细说明，包括 Docker 设置、配置选项和部署指南，请参阅：
+
+📖 **[独立后端服务文档](https://dlp3d.readthedocs.io/en/latest/_subrepos/web_backend/docker.html)**
+
+文档涵盖：
+- Docker 容器设置和配置
+- 环境变量和配置选项
+- 数据库连接设置
+- 服务部署最佳实践
+
 
 ## 环境配置
 
 对于本地开发和部署，请按照详细的安装指南操作：
 
-📖 **[完整安装指南](install.md)**
+📖 **[完整安装指南](docs/install.md)**
 
 安装指南提供以下步骤说明：
 - 设置 Python 3.10+ 环境
@@ -207,7 +179,7 @@ DLP3D Web Backend 使用灵活的配置系统，支持多种环境和部署场�
 - **数据库连接**：自动数据库设置和用户配置
 - **连接流程**：两阶段连接过程确保数据库连接稳定性
 
-📖 **详细配置指南**：如需了解全面的配置文档，包括环境变量、连接流程和使用示例，请参阅 [配置指南](configuration.md)。
+📖 **详细配置指南**：如需了解全面的配置文档，包括环境变量、连接流程和使用示例，请参阅 [配置指南](docs/configuration.md)。
 
 ## 开发指南
 
@@ -256,7 +228,8 @@ DLP3D Web Backend 使用灵活的配置系统，支持多种环境和部署场�
 
 ## 许可证
 
-本项目采用MIT许可证。详情请参见[LICENSE](LICENSE)文件。
+本项目采用 MIT 许可证。详情请参见 [LICENSE](LICENSE) 文件。
 
-MIT许可证是一个宽松的自由软件许可证，允许您使用、复制、修改、合并、发布、分发、再许可和/或销售软件副本，限制很少。唯一的要求是在所有副本或软件的重要部分中必须包含原始版权声明和许可证文本。
+MIT 许可证是一个宽松的自由软件许可证，允许您使用、复制、修改、合并、发布、分发、再许可和/或销售软件副本，限制很少。唯一的要求是在所有副本或软件的重要部分中必须包含原始版权声明和许可证文本。
+
 ---
