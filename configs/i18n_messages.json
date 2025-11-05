@@ -1,0 +1,123 @@
+{
+  "delete_user": {
+    "en": {
+      "invalid_request_format": "Invalid request format: {details}",
+      "validation_error_field": "{field}: {message}",
+      "validation_error_password_min_length": "Password must be at least 8 characters long.",
+      "validation_error_username_invalid_email": "Username must be a valid email address.",
+      "cognito_auth_error": "{error_message}",
+      "auth_error_incorrect_credentials": "Incorrect username or password.",
+      "user_id_not_found": "User ID not found.",
+      "user_id_mismatch": "User ID mismatch.",
+      "cognito_delete_error": "{error_message}",
+      "no_user_credential": "No user credential found for user_id: {user_id}.",
+      "success": ""
+    },
+    "zh": {
+      "invalid_request_format": "请求格式无效：{details}",
+      "validation_error_field": "{field}：{message}",
+      "validation_error_password_min_length": "密码长度至少需要 8 个字符。",
+      "validation_error_username_invalid_email": "用户名必须是有效的邮箱地址。",
+      "cognito_auth_error": "{error_message}",
+      "auth_error_incorrect_credentials": "用户名或密码错误。",
+      "user_id_not_found": "未找到用户 ID。",
+      "user_id_mismatch": "用户 ID 不匹配。",
+      "cognito_delete_error": "{error_message}",
+      "no_user_credential": "未找到用户 ID 为 {user_id} 的用户凭据。",
+      "success": ""
+    }
+  },
+  "register_user": {
+    "en": {
+      "invalid_request_format": "Invalid request format: {details}",
+      "validation_error_field": "{field}: {message}",
+      "validation_error_password_min_length": "Password must be at least 8 characters long.",
+      "validation_error_username_invalid_email": "Username must be a valid email address.",
+      "cognito_sign_up_error": "{error_message}",
+      "cognito_sign_up_error_user_exists": "User already exists.",
+      "username_already_exists": "Username {username} already exists."
+    },
+    "zh": {
+      "invalid_request_format": "请求格式无效：{details}",
+      "validation_error_field": "{field}：{message}",
+      "validation_error_password_min_length": "密码长度至少需要 8 个字符。",
+      "validation_error_username_invalid_email": "用户名必须是有效的邮箱地址。",
+      "cognito_sign_up_error": "{error_message}",
+      "cognito_sign_up_error_user_exists": "用户已存在。",
+      "username_already_exists": "用户名 {username} 已存在。"
+    }
+  },
+  "authenticate_user": {
+    "en": {
+      "invalid_request_format": "Invalid request format: {details}",
+      "validation_error_field": "{field}: {message}",
+      "validation_error_password_min_length": "Password must be at least 8 characters long.",
+      "validation_error_username_invalid_email": "Username must be a valid email address.",
+      "auth_error_unknown": "{error_message}",
+      "auth_error_user_not_found": "User not found.",
+      "auth_error_incorrect_credentials": "Incorrect username or password.",
+      "auth_error_user_not_confirmed": "User account is not confirmed.",
+      "user_id_not_found": "User ID not found."
+    },
+    "zh": {
+      "invalid_request_format": "请求格式无效：{details}",
+      "validation_error_field": "{field}：{message}",
+      "validation_error_password_min_length": "密码长度至少需要 8 个字符。",
+      "validation_error_username_invalid_email": "用户名必须是有效的邮箱地址。",
+      "auth_error_unknown": "{error_message}",
+      "auth_error_user_not_found": "用户不存在。",
+      "auth_error_incorrect_credentials": "用户名或密码错误。",
+      "auth_error_user_not_confirmed": "用户账户未确认。",
+      "user_id_not_found": "未找到用户 ID。"
+    }
+  },
+  "update_user_password": {
+    "en": {
+      "invalid_request_format": "Invalid request format: {details}",
+      "validation_error_field": "{field}: {message}",
+      "validation_error_password_min_length": "Password must be at least 8 characters long.",
+      "validation_error_username_invalid_email": "Username must be a valid email address.",
+      "auth_error_unknown": "{error_message}",
+      "auth_error_incorrect_credentials": "Incorrect username or password.",
+      "auth_error_user_not_confirmed": "User account is not confirmed.",
+      "change_password_error_password_policy": "New password does not meet the password policy requirements.",
+      "change_password_error_unknown": "{error_message}"
+    },
+    "zh": {
+      "invalid_request_format": "请求格式无效：{details}",
+      "validation_error_field": "{field}：{message}",
+      "validation_error_password_min_length": "密码长度至少需要 8 个字符。",
+      "validation_error_username_invalid_email": "用户名必须是有效的邮箱地址。",
+      "auth_error_unknown": "{error_message}",
+      "auth_error_incorrect_credentials": "用户名或密码错误。",
+      "auth_error_user_not_confirmed": "用户账户未确认。",
+      "change_password_error_password_policy": "新密码不符合密码策略要求。",
+      "change_password_error_unknown": "{error_message}"
+    }
+  },
+  "confirm_registration": {
+    "en": {
+      "confirm_error_user_not_found": "User not found.",
+      "confirm_error_code_mismatch": "Invalid or expired confirmation code.",
+      "confirm_error_unknown": "{error_message}"
+    },
+    "zh": {
+      "confirm_error_user_not_found": "用户不存在。",
+      "confirm_error_code_mismatch": "确认码无效或已过期。",
+      "confirm_error_unknown": "{error_message}"
+    }
+  },
+  "resend_confirmation_code": {
+    "en": {
+      "invalid_request_format": "Invalid request format: {details}",
+      "validation_error_field": "{field}: {message}",
+      "validation_error_username_invalid_email": "Email must be a valid email address."
+    },
+    "zh": {
+      "invalid_request_format": "请求格式无效：{details}",
+      "validation_error_field": "{field}：{message}",
+      "validation_error_username_invalid_email": "邮箱必须是有效的邮箱地址。"
+    }
+  }
+}
+

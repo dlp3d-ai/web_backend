@@ -18,8 +18,7 @@ The system supports multiple configuration files for different environments:
 
 | File | Purpose | Environment |
 |------|---------|-------------|
-| `configs/community_en.py` | Docker deployment configuration for English community | Containerized |
-| `configs/community_zh.py` | Docker deployment configuration for Chinese community | Containerized |
+| `configs/community.py` | Docker deployment configuration for community | Containerized |
 | `configs/diamond.py` | Production environment configuration | Production |
 
 ### Configuration File Structure
@@ -85,7 +84,7 @@ After successful bootstrap, the service retries the connection using application
 python main.py
 
 # Using specific configuration file
-python main.py --config_path configs/community_en.py
+python main.py --config_path configs/community.py
 ```
 
 ### Docker Environment Variables

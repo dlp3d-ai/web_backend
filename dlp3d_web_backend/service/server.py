@@ -30,6 +30,7 @@ from pymongo import AsyncMongoClient, MongoClient
 from ..apis.builder import build_api
 from ..data_structures import CharacterConfig, UserConfig, UserCredential
 from ..utils.hash import get_secret_hash, str_to_md5
+from ..utils.i18n import get_message
 from ..utils.super import Super
 from .exceptions import (
     OPENAPI_RESPONSE_400,
@@ -116,6 +117,7 @@ class FastAPIServer(Super):
         aws_cognito_client_id: str | None = None,
         aws_cognito_secret_key: str | None = None,
         aws_region: str | None = None,
+        i18n_path: str = 'configs/i18n_messages.json',
         max_workers: int = 4,
         enable_cors: bool = False,
         host: str = '0.0.0.0',
@@ -135,6 +137,8 @@ class FastAPIServer(Super):
                 MongoDB authentication password.
             default_character_config_paths (list[str]):
                 List of file paths to default character configuration JSON files.
+            motion_file_api_cfg (dict):
+                Configuration for the motion file API.
             mongodb_port (int, optional):
                 MongoDB server port. Defaults to 27017.
             mongodb_database (str, optional):
@@ -160,6 +164,9 @@ class FastAPIServer(Super):
                 AWS Cognito App Client Secret Key for authentication. Defaults to None.
             aws_region (str | None, optional):
                 AWS region for Cognito services. Defaults to None.
+            i18n_path (str, optional):
+                Path to the internationalization messages file.
+                Defaults to 'configs/i18n_messages.json'.
             max_workers (int, optional):
                 Maximum number of worker threads for thread pool executor.
                 Defaults to 4.
@@ -215,6 +222,10 @@ class FastAPIServer(Super):
         if self.aws_cognito_enabled:
             self.aioboto3_session = aioboto3.Session()
             self.logger.info("AWS Cognito Enabled.")
+        # for i18n
+        self.i18n_path = i18n_path
+        with open(self.i18n_path) as f:
+            self.i18n_messages = json.load(f)
         # for fastapi
         self.host = host
         self.port = port
@@ -720,6 +731,7 @@ class FastAPIServer(Super):
             RegisterUserResponse:
                 Response containing user ID and confirmation requirement status.
         """
+        language = request.language
         if self.aws_cognito_enabled:
             try:
                 EmailAuthenticateUserRequest.model_validate(request.model_dump())
@@ -734,13 +746,46 @@ class FastAPIServer(Super):
                         location = location[0]
                     msg = error_dict.get('msg')
                     if location and msg:
-                        frontend_msg += f"{location}: {msg}\n"
+                        msg_key = 'validation_error_field'
+                        if (location == 'password' and
+                                'at least 8 characters' in msg.lower()):
+                            msg_key = 'validation_error_password_min_length'
+                        elif (location == 'username' and
+                              ('valid email address' in msg.lower() or
+                               '@-sign' in msg.lower())):
+                            msg_key = 'validation_error_username_invalid_email'
+
+                        if msg_key == 'validation_error_field':
+                            field_msg = get_message(
+                                'register_user',
+                                msg_key,
+                                messages=self.i18n_messages,
+                                language=language,
+                                field=location,
+                                message=msg
+                            )
+                        else:
+                            field_msg = get_message(
+                                'register_user',
+                                msg_key,
+                                messages=self.i18n_messages,
+                                language=language
+                            )
+                        frontend_msg += field_msg + "\n"
+                if not frontend_msg:
+                    frontend_msg = get_message(
+                        'register_user',
+                        'invalid_request_format',
+                        messages=self.i18n_messages,
+                        language=language,
+                        details=str(details)
+                    )
                 frontend_code = 500
                 return RegisterUserResponse(
                     user_id="",
                     confirmation_required=False,
                     auth_code=frontend_code,
-                    auth_msg=frontend_msg,
+                    auth_msg=frontend_msg.strip(),
                     )
             async with self.aioboto3_session.client(
                     'cognito-idp', region_name=self.aws_region) as cognito_client:
@@ -773,7 +818,23 @@ class FastAPIServer(Super):
                     details = e.response['Error']['Message']
                     self.logger.error(
                         f"Cognito sign up error: {error_code} - {details}")
-                    frontend_msg = details.split(" - ")[-1]
+                    error_message = details.split(" - ")[-1]
+                    if error_message.lower() == "user already exists":
+                        msg_key = 'cognito_sign_up_error_user_exists'
+                        frontend_msg = get_message(
+                            'register_user',
+                            msg_key,
+                            messages=self.i18n_messages,
+                            language=language
+                        )
+                    else:
+                        frontend_msg = get_message(
+                            'register_user',
+                            'cognito_sign_up_error',
+                            messages=self.i18n_messages,
+                            language=language,
+                            error_message=error_message
+                        )
                     frontend_code = 500
                     return RegisterUserResponse(
                         user_id="",
@@ -799,7 +860,13 @@ class FastAPIServer(Super):
                         {"username": request.username}) > 0:
                     msg = f"Username {request.username} already exists."
                     self.logger.error(msg)
-                    frontend_msg = msg
+                    frontend_msg = get_message(
+                        'register_user',
+                        'username_already_exists',
+                        messages=self.i18n_messages,
+                        language=language,
+                        username=request.username
+                    )
                     frontend_code = 500
                     return RegisterUserResponse(
                         user_id="",
@@ -829,6 +896,7 @@ class FastAPIServer(Super):
             ConfirmRegistrationResponse:
                 Response containing the authentication code and message.
         """
+        language = request.language
         async with self.aioboto3_session.client(
                 'cognito-idp', region_name=self.aws_region) as cognito_client:
             loop = asyncio.get_running_loop()
@@ -857,7 +925,34 @@ class FastAPIServer(Super):
                 details = e.response['Error']['Message']
                 self.logger.error(
                     f"Cognito confirm sign up error: {error_code} - {details}")
-                frontend_msg = details.split(" - ")[-1]
+                error_message = details.split(" - ")[-1]
+                error_message_lower = error_message.lower()
+                # For a user never signed up, the error message is
+                # "Invalid code provided, please request a code again"
+                if "invalid code provided" in error_message_lower:
+                    msg_key = 'confirm_error_user_not_found'
+                    frontend_msg = get_message(
+                        'confirm_registration',
+                        msg_key,
+                        messages=self.i18n_messages,
+                        language=language
+                    )
+                elif "invalid verification code" in error_message_lower:
+                    msg_key = 'confirm_error_code_mismatch'
+                    frontend_msg = get_message(
+                        'confirm_registration',
+                        msg_key,
+                        messages=self.i18n_messages,
+                        language=language
+                    )
+                else:
+                    frontend_msg = get_message(
+                        'confirm_registration',
+                        'confirm_error_unknown',
+                        messages=self.i18n_messages,
+                        language=language,
+                        error_message=error_message
+                    )
                 frontend_code = 500
                 return ConfirmRegistrationResponse(
                     auth_code=frontend_code,
@@ -884,6 +979,60 @@ class FastAPIServer(Super):
                 Response containing the operation status. Returns auth_code
                 200 on success, 500 on error with appropriate error message.
         """
+        language = request.language
+        email_dict = dict(
+            username=request.email,
+            password="dummy_password_for_validation",
+        )
+        try:
+            EmailAuthenticateUserRequest.model_validate(email_dict)
+        except ValidationError as e:
+            details = e.errors(include_url=False, include_context=False)
+            msg = f'Invalid request format: {details}'
+            self.logger.error(msg)
+            frontend_msg = ""
+            for error_dict in details:
+                location = error_dict.get('loc')
+                if isinstance(location, tuple) and len(location) > 0:
+                    location = location[0]
+                msg = error_dict.get('msg')
+                # Only handle errors for username (email) field, ignore password field
+                if location and msg and location == 'username':
+                    msg_key = 'validation_error_field'
+                    if ('valid email address' in msg.lower() or
+                            '@-sign' in msg.lower()):
+                        msg_key = 'validation_error_username_invalid_email'
+
+                    if msg_key == 'validation_error_field':
+                        field_msg = get_message(
+                            'resend_confirmation_code',
+                            msg_key,
+                            messages=self.i18n_messages,
+                            language=language,
+                            field=location,
+                            message=msg
+                        )
+                    else:
+                        field_msg = get_message(
+                            'resend_confirmation_code',
+                            msg_key,
+                            messages=self.i18n_messages,
+                            language=language
+                        )
+                    frontend_msg += field_msg + "\n"
+            if not frontend_msg:
+                frontend_msg = get_message(
+                    'resend_confirmation_code',
+                    'invalid_request_format',
+                    messages=self.i18n_messages,
+                    language=language,
+                    details=str(details)
+                )
+            frontend_code = 500
+            return ResendConfirmationCodeResponse(
+                auth_code=frontend_code,
+                auth_msg=frontend_msg.strip(),
+            )
         async with self.aioboto3_session.client(
                 'cognito-idp', region_name=self.aws_region) as cognito_client:
             loop = asyncio.get_running_loop()
@@ -983,6 +1132,7 @@ class FastAPIServer(Super):
             UpdateUserPasswordResponse:
                 Response indicating password change success and confirmation status.
         """
+        language = request.language
         if self.aws_cognito_enabled:
             previous_pwd_dict = dict(
                 username=request.username,
@@ -1001,12 +1151,45 @@ class FastAPIServer(Super):
                         location = location[0]
                     msg = error_dict.get('msg')
                     if location and msg:
-                        frontend_msg += f"{location}: {msg}\n"
+                        msg_key = 'validation_error_field'
+                        if (location == 'password' and
+                                'at least 8 characters' in msg.lower()):
+                            msg_key = 'validation_error_password_min_length'
+                        elif (location == 'username' and
+                              ('valid email address' in msg.lower() or
+                               '@-sign' in msg.lower())):
+                            msg_key = 'validation_error_username_invalid_email'
+
+                        if msg_key == 'validation_error_field':
+                            field_msg = get_message(
+                                'update_user_password',
+                                msg_key,
+                                messages=self.i18n_messages,
+                                language=language,
+                                field=location,
+                                message=msg
+                            )
+                        else:
+                            field_msg = get_message(
+                                'update_user_password',
+                                msg_key,
+                                messages=self.i18n_messages,
+                                language=language
+                            )
+                        frontend_msg += field_msg + "\n"
+                if not frontend_msg:
+                    frontend_msg = get_message(
+                        'update_user_password',
+                        'invalid_request_format',
+                        messages=self.i18n_messages,
+                        language=language,
+                        details=str(details)
+                    )
                 frontend_code = 500
                 return UpdateUserPasswordResponse(
                     confirmation_required=False,
                     auth_code=frontend_code,
-                    auth_msg=frontend_msg,
+                    auth_msg=frontend_msg.strip(),
                     )
             proposed_pwd_dict = dict(
                 username=request.username,
@@ -1025,12 +1208,45 @@ class FastAPIServer(Super):
                         location = location[0]
                     msg = error_dict.get('msg')
                     if location and msg:
-                        frontend_msg += f"{location}: {msg}\n"
+                        msg_key = 'validation_error_field'
+                        if (location == 'password' and
+                                'at least 8 characters' in msg.lower()):
+                            msg_key = 'validation_error_password_min_length'
+                        elif (location == 'username' and
+                              ('valid email address' in msg.lower() or
+                               '@-sign' in msg.lower())):
+                            msg_key = 'validation_error_username_invalid_email'
+
+                        if msg_key == 'validation_error_field':
+                            field_msg = get_message(
+                                'update_user_password',
+                                msg_key,
+                                messages=self.i18n_messages,
+                                language=language,
+                                field=location,
+                                message=msg
+                            )
+                        else:
+                            field_msg = get_message(
+                                'update_user_password',
+                                msg_key,
+                                messages=self.i18n_messages,
+                                language=language
+                            )
+                        frontend_msg += field_msg + "\n"
+                if not frontend_msg:
+                    frontend_msg = get_message(
+                        'update_user_password',
+                        'invalid_request_format',
+                        messages=self.i18n_messages,
+                        language=language,
+                        details=str(details)
+                    )
                 frontend_code = 500
                 return UpdateUserPasswordResponse(
                     confirmation_required=False,
                     auth_code=frontend_code,
-                    auth_msg=frontend_msg,
+                    auth_msg=frontend_msg.strip(),
                     )
             async with self.aioboto3_session.client(
                     'cognito-idp', region_name=self.aws_region) as cognito_client:
@@ -1060,7 +1276,34 @@ class FastAPIServer(Super):
                     details = e.response['Error']['Message']
                     self.logger.error(
                         f"Cognito initiate auth error: {error_code} - {details}")
-                    frontend_msg = details.split(" - ")[-1]
+                    error_message = details.split(" - ")[-1]
+                    error_message_lower = error_message.lower()
+                    if ("incorrect username or password" in error_message_lower or
+                          "not authorized" in error_message_lower):
+                        msg_key = 'auth_error_incorrect_credentials'
+                        frontend_msg = get_message(
+                            'update_user_password',
+                            msg_key,
+                            messages=self.i18n_messages,
+                            language=language
+                        )
+                    elif ("user is not confirmed" in error_message_lower or
+                          "account is not confirmed" in error_message_lower):
+                        msg_key = 'auth_error_user_not_confirmed'
+                        frontend_msg = get_message(
+                            'update_user_password',
+                            msg_key,
+                            messages=self.i18n_messages,
+                            language=language
+                        )
+                    else:
+                        frontend_msg = get_message(
+                            'update_user_password',
+                            'auth_error_unknown',
+                            messages=self.i18n_messages,
+                            language=language,
+                            error_message=error_message
+                        )
                     frontend_code = 500
                     return UpdateUserPasswordResponse(
                         confirmation_required=False,
@@ -1081,7 +1324,26 @@ class FastAPIServer(Super):
                     details = e.response['Error']['Message']
                     self.logger.error(
                         f"Cognito change password error: {error_code} - {details}")
-                    frontend_msg = details.split(" - ")[-1]
+                    error_message = details.split(" - ")[-1]
+                    error_message_lower = error_message.lower()
+                    if ("password policy" in error_message_lower or
+                          "password requirements" in error_message_lower or
+                          "password must" in error_message_lower):
+                        msg_key = 'change_password_error_password_policy'
+                        frontend_msg = get_message(
+                            'update_user_password',
+                            msg_key,
+                            messages=self.i18n_messages,
+                            language=language
+                        )
+                    else:
+                        frontend_msg = get_message(
+                            'update_user_password',
+                            'change_password_error_unknown',
+                            messages=self.i18n_messages,
+                            language=language,
+                            error_message=error_message
+                        )
                     frontend_code = 500
                     return UpdateUserPasswordResponse(
                         confirmation_required=False,
@@ -1092,8 +1354,18 @@ class FastAPIServer(Super):
         else:
             username = request.username
             old_password = request.password
-            await self.authenticate_user(
-                AuthenticateUserRequest(username=username, password=old_password))
+            auth_response = await self.authenticate_user(
+                AuthenticateUserRequest(
+                    username=username,
+                    password=old_password,
+                    language=language
+                ))
+            if auth_response.auth_code != 200:
+                return UpdateUserPasswordResponse(
+                    confirmation_required=False,
+                    auth_code=auth_response.auth_code,
+                    auth_msg=auth_response.auth_msg,
+                )
             new_password = request.new_password
             async with AsyncMongoClient(
                     host=self.mongodb_host,
@@ -1125,6 +1397,7 @@ class FastAPIServer(Super):
             AuthenticateUserResponse:
                 Response containing the user ID if authentication successful.
         """
+        language = getattr(request, 'language', 'en')
         if self.aws_cognito_enabled:
             try:
                 EmailAuthenticateUserRequest.model_validate(request.model_dump())
@@ -1139,12 +1412,45 @@ class FastAPIServer(Super):
                         location = location[0]
                     msg = error_dict.get('msg')
                     if location and msg:
-                        frontend_msg += f"{location}: {msg}\n"
+                        msg_key = 'validation_error_field'
+                        if (location == 'password' and
+                                'at least 8 characters' in msg.lower()):
+                            msg_key = 'validation_error_password_min_length'
+                        elif (location == 'username' and
+                              ('valid email address' in msg.lower() or
+                               '@-sign' in msg.lower())):
+                            msg_key = 'validation_error_username_invalid_email'
+
+                        if msg_key == 'validation_error_field':
+                            field_msg = get_message(
+                                'authenticate_user',
+                                msg_key,
+                                messages=self.i18n_messages,
+                                language=language,
+                                field=location,
+                                message=msg
+                            )
+                        else:
+                            field_msg = get_message(
+                                'authenticate_user',
+                                msg_key,
+                                messages=self.i18n_messages,
+                                language=language
+                            )
+                        frontend_msg += field_msg + "\n"
+                if not frontend_msg:
+                    frontend_msg = get_message(
+                        'authenticate_user',
+                        'invalid_request_format',
+                        messages=self.i18n_messages,
+                        language=language,
+                        details=str(details)
+                    )
                 frontend_code = 500
                 return AuthenticateUserResponse(
                     user_id="",
                     auth_code=frontend_code,
-                    auth_msg=frontend_msg,
+                    auth_msg=frontend_msg.strip(),
                     )
             async with self.aioboto3_session.client(
                     'cognito-idp', region_name=self.aws_region) as cognito_client:
@@ -1174,7 +1480,34 @@ class FastAPIServer(Super):
                     details = e.response['Error']['Message']
                     self.logger.error(
                         f"Cognito initiate auth error: {error_code} - {details}")
-                    frontend_msg = details.split(" - ")[-1]
+                    error_message = details.split(" - ")[-1]
+                    error_message_lower = error_message.lower()
+                    if ("incorrect username or password" in error_message_lower or
+                          "not authorized" in error_message_lower):
+                        msg_key = 'auth_error_incorrect_credentials'
+                        frontend_msg = get_message(
+                            'authenticate_user',
+                            msg_key,
+                            messages=self.i18n_messages,
+                            language=language
+                        )
+                    elif ("user is not confirmed" in error_message_lower or
+                          "account is not confirmed" in error_message_lower):
+                        msg_key = 'auth_error_user_not_confirmed'
+                        frontend_msg = get_message(
+                            'authenticate_user',
+                            msg_key,
+                            messages=self.i18n_messages,
+                            language=language
+                        )
+                    else:
+                        frontend_msg = get_message(
+                            'authenticate_user',
+                            'auth_error_unknown',
+                            messages=self.i18n_messages,
+                            language=language,
+                            error_message=error_message
+                        )
                     frontend_code = 500
                     return AuthenticateUserResponse(
                         user_id="",
@@ -1195,7 +1528,12 @@ class FastAPIServer(Super):
                 if user_id is None:
                     msg = "User ID not found in AWS Cognito user attributes."
                     self.logger.error(msg)
-                    frontend_msg = "User ID not found."
+                    frontend_msg = get_message(
+                        'authenticate_user',
+                        'user_id_not_found',
+                        messages=self.i18n_messages,
+                        language=language
+                    )
                     frontend_code = 500
                     return AuthenticateUserResponse(
                         user_id="",
@@ -1217,7 +1555,12 @@ class FastAPIServer(Super):
                 if username_hit is None:
                     msg = f"Username {request.username} not found."
                     self.logger.error(msg)
-                    frontend_msg = msg
+                    frontend_msg = get_message(
+                        'authenticate_user',
+                        'auth_error_user_not_found',
+                        messages=self.i18n_messages,
+                        language=language
+                    )
                     frontend_code = 500
                     return AuthenticateUserResponse(
                         user_id="",
@@ -1229,7 +1572,12 @@ class FastAPIServer(Super):
                 if password_hit is None:
                     msg = "Password mismatch."
                     self.logger.error(msg)
-                    frontend_msg = "Password mismatch."
+                    frontend_msg = get_message(
+                        'authenticate_user',
+                        'auth_error_incorrect_credentials',
+                        messages=self.i18n_messages,
+                        language=language
+                    )
                     frontend_code = 500
                     return AuthenticateUserResponse(
                         user_id="",
@@ -1258,6 +1606,8 @@ class FastAPIServer(Super):
                 Returns auth_code 200 on success, 500 on error.
         """
         user_id = request.user_id
+        language = request.language
+        exception_msg = ''
         if self.aws_cognito_enabled:
             authenticate_dict = dict(
                 username=request.username,
@@ -1276,12 +1626,45 @@ class FastAPIServer(Super):
                         location = location[0]
                     msg = error_dict.get('msg')
                     if location and msg:
-                        frontend_msg += f"{location}: {msg}\n"
+                        msg_key = 'validation_error_field'
+                        if (location == 'password' and
+                                'at least 8 characters' in msg.lower()):
+                            msg_key = 'validation_error_password_min_length'
+                        elif (location == 'username' and
+                              ('valid email address' in msg.lower() or
+                               '@-sign' in msg.lower())):
+                            msg_key = 'validation_error_username_invalid_email'
+
+                        if msg_key == 'validation_error_field':
+                            field_msg = get_message(
+                                'delete_user',
+                                msg_key,
+                                messages=self.i18n_messages,
+                                language=language,
+                                field=location,
+                                message=msg
+                            )
+                        else:
+                            field_msg = get_message(
+                                'delete_user',
+                                msg_key,
+                                messages=self.i18n_messages,
+                                language=language
+                            )
+                        frontend_msg += field_msg + "\n"
+                if not frontend_msg:
+                    frontend_msg = get_message(
+                        'delete_user',
+                        'invalid_request_format',
+                        messages=self.i18n_messages,
+                        language=language,
+                        details=str(details)
+                    )
                 frontend_code = 500
                 return DeleteUserResponse(
                     user_id=user_id,
                     auth_code=frontend_code,
-                    auth_msg=frontend_msg,
+                    auth_msg=frontend_msg.strip(),
                     )
             async with self.aioboto3_session.client(
                     'cognito-idp', region_name=self.aws_region) as cognito_client:
@@ -1311,7 +1694,25 @@ class FastAPIServer(Super):
                     details = e.response['Error']['Message']
                     self.logger.error(
                         f"Cognito initiate auth error: {error_code} - {details}")
-                    frontend_msg = details.split(" - ")[-1]
+                    error_message = details.split(" - ")[-1]
+                    error_message_lower = error_message.lower()
+                    if ("incorrect username or password" in error_message_lower or
+                          "not authorized" in error_message_lower):
+                        msg_key = 'auth_error_incorrect_credentials'
+                        frontend_msg = get_message(
+                            'delete_user',
+                            msg_key,
+                            messages=self.i18n_messages,
+                            language=language
+                        )
+                    else:
+                        frontend_msg = get_message(
+                            'delete_user',
+                            'cognito_auth_error',
+                            messages=self.i18n_messages,
+                            language=language,
+                            error_message=error_message
+                        )
                     frontend_code = 500
                     return DeleteUserResponse(
                         user_id=user_id,
@@ -1332,7 +1733,12 @@ class FastAPIServer(Super):
                     msg = f"User ID in request {request.user_id} not found " +\
                         "in AWS Cognito user attributes."
                     self.logger.error(msg)
-                    frontend_msg = "User ID not found."
+                    frontend_msg = get_message(
+                        'delete_user',
+                        'user_id_not_found',
+                        messages=self.i18n_messages,
+                        language=language
+                    )
                     frontend_code = 500
                     return DeleteUserResponse(
                         user_id=user_id,
@@ -1343,7 +1749,12 @@ class FastAPIServer(Super):
                     msg = f"User ID in request {request.user_id} mismatch " +\
                         f"with user ID in AWS Cognito {user_id}."
                     self.logger.error(msg)
-                    frontend_msg = "User ID mismatch."
+                    frontend_msg = get_message(
+                        'delete_user',
+                        'user_id_mismatch',
+                        messages=self.i18n_messages,
+                        language=language
+                    )
                     frontend_code = 500
                     return DeleteUserResponse(
                         user_id=user_id,
@@ -1359,7 +1770,14 @@ class FastAPIServer(Super):
                     details = e.response['Error']['Message']
                     self.logger.error(
                         f"Cognito delete user error: {error_code} - {details}")
-                    frontend_msg = details.split(" - ")[-1]
+                    error_message = details.split(" - ")[-1]
+                    frontend_msg = get_message(
+                        'delete_user',
+                        'cognito_delete_error',
+                        messages=self.i18n_messages,
+                        language=language,
+                        error_message=error_message
+                    )
                     frontend_code = 500
                     return DeleteUserResponse(
                         user_id=user_id,
@@ -1374,13 +1792,26 @@ class FastAPIServer(Super):
                     password=self.mongodb_password,
                     authSource=self.mongodb_auth_database,
             ) as client:
-                exception_msg = ''
                 db = client[self.mongodb_database]
                 credential_collection = db[self.mongodb_credential_collection]
-                n_credentials = await credential_collection.count_documents({})
+                n_credentials = await credential_collection.count_documents(
+                    {"user_id": user_id})
                 if n_credentials == 0:
-                    exception_msg += \
-                        f'No user credential found for user_id: {user_id}.\n'
+                    self.logger.error(f"No user credential found for user {user_id}.")
+                    exception_msg += get_message(
+                        'delete_user',
+                        'no_user_credential',
+                        messages=self.i18n_messages,
+                        language=language,
+                        user_id=user_id
+                    )
+                    frontend_msg = exception_msg.strip()
+                    frontend_code = 500
+                    return DeleteUserResponse(
+                        user_id=user_id,
+                        auth_code=frontend_code,
+                        auth_msg=frontend_msg,
+                    )
                 else:
                     await credential_collection.delete_many({"user_id": user_id})
                     self.logger.info(
@@ -1393,14 +1824,12 @@ class FastAPIServer(Super):
                 password=self.mongodb_password,
                 authSource=self.mongodb_auth_database,
         ) as client:
-            exception_msg = ''
             db = client[self.mongodb_database]
             user_config_collection = db[self.mongodb_user_collection]
             # log how many documents are deleted
-            n_user_configs = await user_config_collection.count_documents({})
-            if n_user_configs == 0:
-                exception_msg += f'No user config found for user_id: {user_id}.\n'
-            else:
+            n_user_configs = await user_config_collection.count_documents(
+                {"user_id": user_id})
+            if n_user_configs > 0:
                 await user_config_collection.delete_many({"user_id": user_id})
                 self.logger.info(
                     f"Deleted user config for user {user_id} from the database.")
@@ -1410,16 +1839,13 @@ class FastAPIServer(Super):
             await character_collection.delete_many({"user_id": user_id})
             self.logger.info(
                 f"Deleted {n_characters} characters for user {user_id}.")
-            if len(exception_msg) > 0:
-                self.logger.error(exception_msg)
-                frontend_msg = exception_msg
-                frontend_code = 500
-                return DeleteUserResponse(
-                    user_id=user_id,
-                    auth_code=frontend_code,
-                    auth_msg=frontend_msg,
-                )
-        return DeleteUserResponse(user_id=user_id, auth_code=200, auth_msg="")
+        success_msg = get_message(
+            'delete_user',
+            'success',
+            messages=self.i18n_messages,
+            language=language
+        )
+        return DeleteUserResponse(user_id=user_id, auth_code=200, auth_msg=success_msg)
 
     async def duplicate_character(
             self, request: DuplicateCharacterRequest) -> DuplicateCharacterResponse:
