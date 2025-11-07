@@ -41,6 +41,7 @@ from .exceptions import (
     ReadOnlyCharacterException,
     register_error_handlers,
 )
+from .providers import ASR_REQUIREMENTS, LLM_REQUIREMENTS, TTS_REQUIREMENTS
 from .requests import (
     AuthenticateUserRequest,
     BlendshapesMetaV1Request,
@@ -77,6 +78,7 @@ from .responses import (
     GetAvailableProvidersResponse,
     GetCharacterConfigResponse,
     GetCharacterListResponse,
+    GetSecretRequirementsResponse,
     ListUsersResponse,
     MotionKeywordsV1Response,
     RegisterUserResponse,
@@ -319,6 +321,19 @@ class FastAPIServer(Super):
                 200: {
                     "description": "Success",
                     "model": GetCharacterConfigResponse
+                },
+                **OPENAPI_RESPONSE_404
+            }
+        )
+        router.add_api_route(
+            "/api/v1/get_secret_requirements/{user_id}/{character_id}",
+            self.get_secret_requirements,
+            methods=["GET"],
+            response_model=GetSecretRequirementsResponse,
+            responses={
+                200: {
+                    "description": "Success",
+                    "model": GetSecretRequirementsResponse
                 },
                 **OPENAPI_RESPONSE_404
             }
@@ -2418,14 +2433,6 @@ class FastAPIServer(Super):
             GetAvailableProvidersResponse:
                 Response containing set of available LLM service names.
         """
-        llm_requirements = dict(
-            openai={'openai_api_key'},
-            xai={'xai_api_key'},
-            anthropic={'anthropic_api_key'},
-            gemini={'gemini_api_key'},
-            deepseek={'deepseek_api_key'},
-            sensenova={'sensenova_ak', 'sensenova_sk'},
-        )
         async with AsyncMongoClient(
                 host=self.mongodb_host,
                 port=self.mongodb_port,
@@ -2439,7 +2446,7 @@ class FastAPIServer(Super):
                 {"user_id": user_id},
                 {"_id": 0})
         return_set = set()
-        for key, value in llm_requirements.items():
+        for key, value in LLM_REQUIREMENTS.items():
             if all(api_keys.get(key) != '' for key in value):
                 return_set.add(key)
         return GetAvailableProvidersResponse(options=return_set)
@@ -2460,11 +2467,6 @@ class FastAPIServer(Super):
             GetAvailableProvidersResponse:
                 Response containing a set of available ASR provider names.
         """
-        asr_requirements = dict(
-            openai={'openai_api_key'},
-            zoetrope=set(),
-            softsugar={'softsugar_app_id', 'softsugar_app_key'}
-        )
         async with AsyncMongoClient(
                 host=self.mongodb_host,
                 port=self.mongodb_port,
@@ -2478,7 +2480,7 @@ class FastAPIServer(Super):
                 {"user_id": user_id},
                 {"_id": 0})
         return_set = set()
-        for key, value in asr_requirements.items():
+        for key, value in ASR_REQUIREMENTS.items():
             if len(value) == 0:
                 return_set.add(key)
             elif all(api_keys.get(key) != '' for key in value):
@@ -2501,14 +2503,6 @@ class FastAPIServer(Super):
             GetAvailableProvidersResponse:
                 Response containing a set of available TTS provider names.
         """
-        tts_requirements = dict(
-            zoetrope=set(),
-            huoshan={'huoshan_app_id', 'huoshan_token'},
-            huoshan_icl={'huoshan_app_id', 'huoshan_token'},
-            softsugar={'softsugar_app_id', 'softsugar_app_key'},
-            sensenova={'nova_tts_api_key'},
-            elevenlabs={'elevenlabs_api_key'}
-        )
         async with AsyncMongoClient(
                 host=self.mongodb_host,
                 port=self.mongodb_port,
@@ -2522,12 +2516,90 @@ class FastAPIServer(Super):
                 {"user_id": user_id},
                 {"_id": 0})
         return_set = set()
-        for key, value in tts_requirements.items():
+        for key, value in TTS_REQUIREMENTS.items():
             if len(value) == 0:
                 return_set.add(key)
             elif all(api_keys.get(key) != '' for key in value):
                 return_set.add(key)
         return GetAvailableProvidersResponse(options=return_set)
+
+    async def get_secret_requirements(
+            self,
+            user_id: str,
+            character_id: str) -> GetSecretRequirementsResponse:
+        """Get API key requirements for a character configuration.
+
+        This method retrieves the API key requirements for a specific character
+        based on its configured adapters (ASR, TTS, and LLM services). It checks
+        which required API keys are not configured in the user's profile and
+        returns them in the response.
+
+        Args:
+            user_id (str):
+                Unique identifier of the user who owns the character.
+            character_id (str):
+                Unique identifier of the character to check requirements for.
+
+        Returns:
+            GetSecretRequirementsResponse:
+                Response containing sets of API key names that are required and
+                not configured for the character's ASR, TTS, and LLM adapters.
+        """
+        async with AsyncMongoClient(
+                host=self.mongodb_host,
+                port=self.mongodb_port,
+                username=self.mongodb_username,
+                password=self.mongodb_password,
+                authSource=self.mongodb_auth_database,
+        ) as client:
+            await self._check_character_exists(client, user_id, character_id)
+            db = client[self.mongodb_database]
+            user_collection = db[self.mongodb_user_collection]
+            api_keys = await user_collection.find_one(
+                {"user_id": user_id},
+                {"_id": 0})
+            character_collection = db[self.mongodb_character_collection]
+            character_config = await character_collection.find_one(
+                {"user_id": user_id,
+                 "character_id": character_id},
+                {"_id": 0,
+                 "asr_adapter": 1,
+                 "tts_adapter": 1,
+                 "conversation_adapter": 1,
+                 "reaction_adapter": 1,
+                 "memory_adapter": 1,
+                 "classification_adapter": 1})
+            asr_requirements = set()
+            asr_adapter = character_config["asr_adapter"]
+            asr_provider = asr_adapter.split("_")[0]
+            asr_requirements = ASR_REQUIREMENTS[asr_provider]
+            for key in asr_requirements:
+                if api_keys.get(key) == '':
+                    asr_requirements.add(key)
+            tts_requirements = set()
+            tts_adapter = character_config["tts_adapter"]
+            tts_provider = tts_adapter.split("_")[0]
+            tts_requirements = TTS_REQUIREMENTS[tts_provider]
+            for key in tts_requirements:
+                if api_keys.get(key) == '':
+                    tts_requirements.add(key)
+            llm_requirements = set()
+            for adapter_type in (
+                    "conversation_adapter",
+                    "reaction_adapter",
+                    "memory_adapter",
+                    "classification_adapter"):
+                adapter_name = character_config[adapter_type]
+                adapter_provider = adapter_name.split("_")[0]
+                adapter_requirements = LLM_REQUIREMENTS[adapter_provider]
+                for key in adapter_requirements:
+                    if api_keys.get(key) == '':
+                        llm_requirements.add(key)
+            resp = GetSecretRequirementsResponse(
+                llm_requirements=llm_requirements,
+                tts_requirements=tts_requirements,
+                asr_requirements=asr_requirements)
+            return resp
 
     async def _check_character_read_only(
             self,
