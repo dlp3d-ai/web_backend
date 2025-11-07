@@ -24,6 +24,10 @@ mongodb_password = os.getenv('MONGODB_PASSWORD')
 mongodb_database = os.getenv('MONGODB_DATABASE')
 mongodb_auth_database = os.getenv('MONGODB_AUTH_DATABASE')
 default_character_config_paths = [
+    'configs/community_character_samples_en/keqing-default.json',
+    'configs/community_character_samples_en/furina-default.json',
+    'configs/community_character_samples_en/hutao-default.json',
+    'configs/community_character_samples_en/ani-default.json',
     'configs/community_character_samples_zh/kq-default.json',
     'configs/community_character_samples_zh/fnn-default.json',
     'configs/community_character_samples_zh/ht-default.json',

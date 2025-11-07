@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -12,9 +14,12 @@ class RegisterUserRequest(BaseModel):
             Unique username for the new user account.
         password (str):
             Password for the new user account.
+        language (Literal['en', 'zh']):
+            Language code for error messages. Defaults to 'en'.
     """
     username: str
     password: str
+    language: Literal['en', 'zh'] = 'en'
 
 class EmailAuthenticateUserRequest(BaseModel):
     """Request model for email-based user authentication.
@@ -35,6 +40,7 @@ class EmailAuthenticateUserRequest(BaseModel):
         ...,
         min_length=8,
         description="Password must be at least 8 characters long")
+    language: Literal['en', 'zh'] = 'en'
 
 class ConfirmRegistrationRequest(BaseModel):
     """Request model for confirming user registration.
@@ -46,9 +52,12 @@ class ConfirmRegistrationRequest(BaseModel):
             Email of the user to be confirmed.
         confirmation_code (str):
             Confirmation code for the user's registration.
+        language (Literal['en', 'zh']):
+            Language code for error messages. Defaults to 'en'.
     """
     email: EmailStr
     confirmation_code: str
+    language: Literal['en', 'zh'] = 'en'
 
 class ResendConfirmationCodeRequest(BaseModel):
     """Request model for resending confirmation code.
@@ -57,10 +66,13 @@ class ResendConfirmationCodeRequest(BaseModel):
     to the user's email address.
 
     Attributes:
-        email (EmailStr):
+        email (str):
             Email of the user to resend the confirmation code to.
+        language (Literal['en', 'zh']):
+            Language code for error messages. Defaults to 'en'.
     """
-    email: EmailStr
+    email: str
+    language: Literal['en', 'zh'] = 'en'
 
 class UpdateUserPasswordRequest(BaseModel):
     """Request model for updating user password.
@@ -75,10 +87,13 @@ class UpdateUserPasswordRequest(BaseModel):
             Current password for authentication.
         new_password (str):
             New password to replace the current one.
+        language (Literal['en', 'zh']):
+            Language code for error messages. Defaults to 'en'.
     """
     username: str
     password: str
     new_password: str
+    language: Literal['en', 'zh'] = 'en'
 
 class AuthenticateUserRequest(BaseModel):
     """Request model for user authentication.
@@ -91,9 +106,12 @@ class AuthenticateUserRequest(BaseModel):
             Username for authentication.
         password (str):
             Password for authentication.
+        language (Literal['en', 'zh']):
+            Language code for error messages. Defaults to 'en'.
     """
     username: str
     password: str
+    language: Literal['en', 'zh'] = 'en'
 
 class DeleteUserRequest(BaseModel):
     """Request model for deleting a user.
@@ -108,10 +126,13 @@ class DeleteUserRequest(BaseModel):
             Password for authentication.
         user_id (str):
             Unique identifier of the user to be deleted.
+        language (Literal['en', 'zh']):
+            Language code for error messages. Defaults to 'en'.
     """
     username: str
     password: str
     user_id: str
+    language: Literal['en', 'zh'] = 'en'
 
 class DuplicateCharacterRequest(BaseModel):
     """Request model for duplicating a character.

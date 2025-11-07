@@ -20,8 +20,7 @@ DLP3D Web Backend 使用灵活的配置系统，支持多种环境和部署场�
 
 | 文件 | 用途 | 环境 |
 |------|---------|-------------|
-| `configs/community_en.py` | 英文社区版本的 Docker 部署配置 | 容器化 |
-| `configs/community_zh.py` | 中文社区版本的 Docker 部署配置 | 容器化 |
+| `configs/community.py` | 社区版本的 Docker 部署配置 | 容器化 |
 | `configs/diamond.py` | 生产环境配置 | 生产环境 |
 
 ### 配置文件结构
@@ -90,7 +89,7 @@ DLP3D Web Backend 使用灵活的配置系统，支持多种环境和部署场�
 python main.py
 
 # 使用特定配置文件
-python main.py --config_path configs/community_en.py
+python main.py --config_path configs/community.py
 ```
 
 ### Docker 环境变量
