@@ -78,7 +78,7 @@ from .responses import (
     GetAvailableProvidersResponse,
     GetCharacterConfigResponse,
     GetCharacterListResponse,
-    GetSecretRequirementsResponse,
+    GetMissingSecretsResponse,
     ListUsersResponse,
     MotionKeywordsV1Response,
     RegisterUserResponse,
@@ -326,14 +326,14 @@ class FastAPIServer(Super):
             }
         )
         router.add_api_route(
-            "/api/v1/get_secret_requirements/{user_id}/{character_id}",
-            self.get_secret_requirements,
+            "/api/v1/get_missing_secrets/{user_id}/{character_id}",
+            self.get_missing_secrets,
             methods=["GET"],
-            response_model=GetSecretRequirementsResponse,
+            response_model=GetMissingSecretsResponse,
             responses={
                 200: {
                     "description": "Success",
-                    "model": GetSecretRequirementsResponse
+                    "model": GetMissingSecretsResponse
                 },
                 **OPENAPI_RESPONSE_404
             }
@@ -2523,26 +2523,27 @@ class FastAPIServer(Super):
                 return_set.add(key)
         return GetAvailableProvidersResponse(options=return_set)
 
-    async def get_secret_requirements(
+    async def get_missing_secrets(
             self,
             user_id: str,
-            character_id: str) -> GetSecretRequirementsResponse:
-        """Get API key requirements for a character configuration.
+            character_id: str) -> GetMissingSecretsResponse:
+        """Get missing API keys for a character configuration.
 
-        This method retrieves the API key requirements for a specific character
-        based on its configured adapters (ASR, TTS, and LLM services). It checks
-        which required API keys are not configured in the user's profile and
-        returns them in the response.
+        This method retrieves the missing (unconfigured) API keys for a specific
+        character based on its configured adapters (ASR, TTS, and LLM services).
+        It checks which required API keys are empty or not set in the user's
+        profile and returns them in the response, helping users identify which
+        credentials they still need to provide.
 
         Args:
             user_id (str):
                 Unique identifier of the user who owns the character.
             character_id (str):
-                Unique identifier of the character to check requirements for.
+                Unique identifier of the character to check missing keys for.
 
         Returns:
-            GetSecretRequirementsResponse:
-                Response containing sets of API key names that are required and
+            GetMissingSecretsResponse:
+                Response containing sets of API key names that are required but
                 not configured for the character's ASR, TTS, and LLM adapters.
         """
         async with AsyncMongoClient(
@@ -2595,7 +2596,7 @@ class FastAPIServer(Super):
                 for key in adapter_requirements:
                     if api_keys.get(key) == '':
                         llm_requirements.add(key)
-            resp = GetSecretRequirementsResponse(
+            resp = GetMissingSecretsResponse(
                 llm_requirements=llm_requirements,
                 tts_requirements=tts_requirements,
                 asr_requirements=asr_requirements)

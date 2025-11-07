@@ -168,24 +168,25 @@ class GetAvailableProvidersResponse(BaseModel):
     """
     options: set[str]
 
-class GetSecretRequirementsResponse(BaseModel):
-    """Response model for secret requirements retrieval operation.
+class GetMissingSecretsResponse(BaseModel):
+    """Response model for missing API keys retrieval operation.
 
-    This model contains the response data returned when fetching the API key
-    requirements for a specific character configuration, including requirements
-    for LLM, TTS, and ASR services based on the configured adapters.
+    This model contains the response data returned when checking which API keys
+    are missing (not configured) for a specific character configuration. It
+    identifies the required but unconfigured API keys needed for the character's
+    LLM, TTS, and ASR services to function properly.
 
     Attributes:
         llm_requirements (set[str]):
-            Set of API key names required for Large Language Model services
-            used by the character's conversation, reaction, memory, and
-            classification adapters.
+            Set of missing API key names required for Large Language Model
+            services used by the character's conversation, reaction, memory,
+            and classification adapters.
         tts_requirements (set[str]):
-            Set of API key names required for Text-to-Speech service
+            Set of missing API key names required for Text-to-Speech service
             used by the character's TTS adapter.
         asr_requirements (set[str]):
-            Set of API key names required for Automatic Speech Recognition
-            service used by the character's ASR adapter.
+            Set of missing API key names required for Automatic Speech
+            Recognition service used by the character's ASR adapter.
     """
     llm_requirements: set[str]
     tts_requirements: set[str]
