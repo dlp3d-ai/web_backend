@@ -24,10 +24,14 @@ mongodb_password = os.getenv('MONGODB_PASSWORD')
 mongodb_database = os.getenv('MONGODB_DATABASE')
 mongodb_auth_database = os.getenv('MONGODB_AUTH_DATABASE')
 default_character_config_paths = [
-    'configs/diamond_character_samples/kq-default.json',
-    'configs/diamond_character_samples/fnn-default.json',
-    'configs/diamond_character_samples/ht-default.json',
-    'configs/diamond_character_samples/ani-default.json']
+    'configs/diamond_character_samples_zh/kq-default.json',
+    'configs/diamond_character_samples_zh/fnn-default.json',
+    'configs/diamond_character_samples_zh/ht-default.json',
+    'configs/diamond_character_samples_zh/ani-default.json',
+    'configs/community_character_samples_en/keqing-default.json',
+    'configs/community_character_samples_en/furina-default.json',
+    'configs/community_character_samples_en/hutao-default.json',
+    'configs/community_character_samples_en/ani-default.json',]
 default_user_config_path = 'secrets/user_sample.json'
 aws_cognito_user_pool_id = os.environ['AWS_COGNITO_USER_POOL_ID']
 aws_cognito_client_id = os.environ['AWS_COGNITO_CLIENT_ID']

@@ -2570,21 +2570,21 @@ class FastAPIServer(Super):
                  "reaction_adapter": 1,
                  "memory_adapter": 1,
                  "classification_adapter": 1})
-            asr_requirements = set()
+            asr_missing_secrets = set()
             asr_adapter = character_config["asr_adapter"]
             asr_provider = asr_adapter.split("_")[0]
             asr_requirements = ASR_REQUIREMENTS[asr_provider]
             for key in asr_requirements:
                 if api_keys.get(key) == '':
-                    asr_requirements.add(key)
-            tts_requirements = set()
+                    asr_missing_secrets.add(key)
+            tts_missing_secrets = set()
             tts_adapter = character_config["tts_adapter"]
             tts_provider = tts_adapter.split("_")[0]
             tts_requirements = TTS_REQUIREMENTS[tts_provider]
             for key in tts_requirements:
                 if api_keys.get(key) == '':
-                    tts_requirements.add(key)
-            llm_requirements = set()
+                    tts_missing_secrets.add(key)
+            llm_missing_secrets = set()
             for adapter_type in (
                     "conversation_adapter",
                     "reaction_adapter",
@@ -2595,11 +2595,11 @@ class FastAPIServer(Super):
                 adapter_requirements = LLM_REQUIREMENTS[adapter_provider]
                 for key in adapter_requirements:
                     if api_keys.get(key) == '':
-                        llm_requirements.add(key)
+                        llm_missing_secrets.add(key)
             resp = GetMissingSecretsResponse(
-                llm_requirements=llm_requirements,
-                tts_requirements=tts_requirements,
-                asr_requirements=asr_requirements)
+                llm_requirements=llm_missing_secrets,
+                tts_requirements=tts_missing_secrets,
+                asr_requirements=asr_missing_secrets)
             return resp
 
     async def _check_character_read_only(
