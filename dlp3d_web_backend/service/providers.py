@@ -17,7 +17,8 @@ LLM_REQUIREMENTS = dict(
 ASR_REQUIREMENTS = dict(
     openai={'openai_api_key'},
     zoetrope=set(),
-    softsugar={'softsugar_app_id', 'softsugar_app_key'}
+    softsugar={'softsugar_app_id', 'softsugar_app_key'},
+    huoshan={'huoshan_app_id', 'huoshan_token'},
 )
 
 TTS_REQUIREMENTS = dict(
