@@ -12,7 +12,7 @@ LLM_REQUIREMENTS = dict(
     gemini={'gemini_api_key'},
     deepseek={'deepseek_api_key'},
     sensenova={'sensenova_ak', 'sensenova_sk'},
-    sensechat={'sensenova_ak', 'sensenova_sk'},
+    sensechat={'sensechat_ak', 'sensechat_sk'},
     sensenovaomni={'sensenovaomni_ak', 'sensenovaomni_sk'},
 )
 

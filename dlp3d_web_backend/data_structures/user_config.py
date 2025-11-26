@@ -17,6 +17,8 @@ class UserConfig(BaseModel):
     sensenova_api_key: str = ''
     sensenova_ak: str = ''
     sensenova_sk: str = ''
+    sensechat_ak: str = ''
+    sensechat_sk: str = ''
     sensenovaomni_ak: str = ''
     sensenovaomni_sk: str = ''
     softsugar_app_id: str = ''
