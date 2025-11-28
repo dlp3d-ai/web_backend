@@ -313,6 +313,10 @@ class UpdateUserConfigRequest(BaseModel):
     sensenova_api_key: str | None = None
     sensenova_ak: str | None = None
     sensenova_sk: str | None = None
+    sensechat_ak: str | None = None
+    sensechat_sk: str | None = None
+    sensenovaomni_ak: str | None = None
+    sensenovaomni_sk: str | None = None
     softsugar_app_id: str | None = None
     softsugar_app_key: str | None = None
     huoshan_app_id: str | None = None
