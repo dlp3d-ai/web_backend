@@ -2447,7 +2447,7 @@ class FastAPIServer(Super):
                 {"_id": 0})
         return_set = set()
         for key, value in LLM_REQUIREMENTS.items():
-            if all(api_keys.get(key) != '' for key in value):
+            if all(api_keys.get(key, '') != '' for key in value):
                 return_set.add(key)
         return GetAvailableProvidersResponse(options=return_set)
 
