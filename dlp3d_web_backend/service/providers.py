@@ -6,7 +6,6 @@ Recognition (ASR), and Text-to-Speech (TTS) services.
 """
 
 LLM_REQUIREMENTS = dict(
-    local=set(),
     openai={'openai_api_key'},
     xai={'xai_api_key'},
     anthropic={'anthropic_api_key'},
@@ -18,7 +17,6 @@ LLM_REQUIREMENTS = dict(
 )
 
 ASR_REQUIREMENTS = dict(
-    local=set(),
     openai={'openai_api_key'},
     zoetrope=set(),
     softsugar={'softsugar_app_id', 'softsugar_app_key'},
@@ -26,7 +24,7 @@ ASR_REQUIREMENTS = dict(
 )
 
 TTS_REQUIREMENTS = dict(
-    local=set(),
+    chatterbox=set(),
     zoetrope=set(),
     huoshan={'huoshan_app_id', 'huoshan_token'},
     huoshan_icl={'huoshan_app_id', 'huoshan_token'},
