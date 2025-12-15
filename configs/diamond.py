@@ -76,6 +76,8 @@ motion_file_api_cfg = dict(
             'KQ-default': 'restpose_npz/KQ_default_0326_skeleton.npz',
             'FNN-default': 'restpose_npz/FNN_default_0819_skeleton.npz',
             'HT-default': 'restpose_npz/HT_default_0819_skeleton.npz',
+            'NXD-default': 'restpose_npz/NXD_default_1202_skeleton.npz',
+            'KL-default': 'restpose_npz/KL_default_1202_skeleton.npz',
             'Ani-default': 'restpose_npz/Ani_default_0827_skeleton.npz'
         },
         endpoint=os.getenv('OSS_ENDPOINT'),
@@ -91,6 +93,8 @@ motion_file_api_cfg = dict(
             'KQ-default': 'mesh_glb/keqing.glb',
             'FNN-default': 'mesh_glb/funingna.glb',
             'HT-default': 'mesh_glb/hutao.glb',
+            'NXD-default': 'mesh_glb/nahida.glb',
+            'KL-default': 'mesh_glb/klee.glb',
             'Ani-default': 'mesh_glb/ani.glb'
         },
         endpoint=os.getenv('OSS_ENDPOINT'),
@@ -136,7 +140,9 @@ motion_file_api_cfg = dict(
             'KQ-default': 'blendshapes_meta/KQ-default_blendshapes_meta.json',
             'FNN-default': 'blendshapes_meta/FNN-default_blendshapes_meta.json',
             'HT-default': 'blendshapes_meta/HT-default_blendshapes_meta.json',
-            'Ani-default': 'blendshapes_meta/Ani-default_blendshapes_meta.json'
+            'NXD-default': 'blendshapes_meta/NXD-default_blendshapes_meta.json',
+            'KL-default': 'blendshapes_meta/KL-default_blendshapes_meta.json',
+            'Ani-default': 'blendshapes_meta/Ani-default_blendshapes_meta.json',
         },
         endpoint=os.getenv('OSS_ENDPOINT'),
         access_key=os.getenv('OSS_ACCESS_KEY'),

@@ -28,6 +28,13 @@ class CacheNotReadyError(Exception):
     """
     pass
 
+class FileMissingError(Exception):
+    """File missing error.
+
+    Raised when a file is not found.
+    """
+    pass
+
 class LocalCache(Super):
     """Local cache using memory and temporary files.
 
@@ -402,7 +409,7 @@ class LocalCache(Super):
             return joints_bytes
         msg = f'No joints meta data record found for name={joints_name}.'
         self.logger.error(msg)
-        raise KeyError(msg)
+        raise FileMissingError(msg)
 
     async def get_rigids_meta_by_name(self, rigids_name: str) -> bytes:
         """Get rigids meta by name.
@@ -434,7 +441,7 @@ class LocalCache(Super):
             return rigids_bytes
         msg = f'No rigids meta data record found for name={rigids_name}.'
         self.logger.error(msg)
-        raise KeyError(msg)
+        raise FileMissingError(msg)
 
     async def get_blendshapes_meta_by_name(self, blendshapes_name: str) -> bytes:
         """Get blendshapes meta by name.
