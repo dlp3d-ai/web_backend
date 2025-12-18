@@ -3,7 +3,7 @@
     "scene_name": "vast",
     "avatar": "Ani-default",
     "tts_adapter": "elevenlabs",
-    "voice": "IAfVgyogVSvpCyZeevDo",
+    "voice": "CjH2Rpa4eIAAHuDoVd5Z",
     "voice_speed": 1.0,
     "asr_adapter": "openai_realtime",
     "classification_adapter": "openai_classification",
