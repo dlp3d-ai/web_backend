@@ -110,6 +110,8 @@ motion_file_api_cfg = dict(
             'KQ-default': 'joints_meta/KQ-default_joints_meta.json',
             'FNN-default': 'joints_meta/FNN-default_joints_meta.json',
             'HT-default': 'joints_meta/HT-default_joints_meta.json',
+            'NXD-default': 'joints_meta/NXD-default_joints_meta.json',
+            'KL-default': 'joints_meta/KL-default_joints_meta.json',
             'Ani-default': 'joints_meta/Ani-default_joints_meta.json'
         },
         endpoint=os.getenv('OSS_ENDPOINT'),
@@ -125,6 +127,8 @@ motion_file_api_cfg = dict(
             'KQ-default': 'rigids_meta/KQ-default_rigids_meta.json',
             'FNN-default': 'rigids_meta/FNN-default_rigids_meta.json',
             'HT-default': 'rigids_meta/HT-default_rigids_meta.json',
+            'NXD-default': 'rigids_meta/NXD-default_rigids_meta.json',
+            'KL-default': 'rigids_meta/KL-default_rigids_meta.json',
             'Ani-default': 'rigids_meta/Ani-default_rigids_meta.json'
         },
         endpoint=os.getenv('OSS_ENDPOINT'),
