@@ -61,6 +61,8 @@ motion_file_api_cfg = dict(
             'KQ-default': 'restpose_npz/KQ_default_0326_skeleton.npz',
             'FNN-default': 'restpose_npz/FNN_default_0819_skeleton.npz',
             'HT-default': 'restpose_npz/HT_default_0819_skeleton.npz',
+            'NXD-default': 'restpose_npz/NXD_default_1202_skeleton.npz',
+            'KL-default': 'restpose_npz/KL_default_1202_skeleton.npz',
             'Ani-default': 'restpose_npz/Ani_default_0827_skeleton.npz'
         },
         logger_cfg=__logger_cfg__
@@ -73,6 +75,8 @@ motion_file_api_cfg = dict(
             'KQ-default': 'mesh_glb/keqing.glb',
             'FNN-default': 'mesh_glb/funingna.glb',
             'HT-default': 'mesh_glb/hutao.glb',
+            'NXD-default': 'mesh_glb/nahida.glb',
+            'KL-default': 'mesh_glb/klee.glb',
             'Ani-default': 'mesh_glb/ani.glb'
         },
         logger_cfg=__logger_cfg__
@@ -85,6 +89,8 @@ motion_file_api_cfg = dict(
             'KQ-default': 'joints_meta/KQ-default_joints_meta.json',
             'FNN-default': 'joints_meta/FNN-default_joints_meta.json',
             'HT-default': 'joints_meta/HT-default_joints_meta.json',
+            'NXD-default': 'joints_meta/NXD-default_joints_meta.json',
+            'KL-default': 'joints_meta/KL-default_joints_meta.json',
             'Ani-default': 'joints_meta/Ani-default_joints_meta.json'
         },
         logger_cfg=__logger_cfg__
@@ -97,6 +103,8 @@ motion_file_api_cfg = dict(
             'KQ-default': 'rigids_meta/KQ-default_rigids_meta.json',
             'FNN-default': 'rigids_meta/FNN-default_rigids_meta.json',
             'HT-default': 'rigids_meta/HT-default_rigids_meta.json',
+            'NXD-default': 'rigids_meta/NXD-default_rigids_meta.json',
+            'KL-default': 'rigids_meta/KL-default_rigids_meta.json',
             'Ani-default': 'rigids_meta/Ani-default_rigids_meta.json'
         },
         logger_cfg=__logger_cfg__
@@ -109,6 +117,8 @@ motion_file_api_cfg = dict(
             'KQ-default': 'blendshapes_meta/KQ-default_blendshapes_meta.json',
             'FNN-default': 'blendshapes_meta/FNN-default_blendshapes_meta.json',
             'HT-default': 'blendshapes_meta/HT-default_blendshapes_meta.json',
+            'NXD-default': 'blendshapes_meta/NXD-default_blendshapes_meta.json',
+            'KL-default': 'blendshapes_meta/KL-default_blendshapes_meta.json',
             'Ani-default': 'blendshapes_meta/Ani-default_blendshapes_meta.json'
         },
         logger_cfg=__logger_cfg__

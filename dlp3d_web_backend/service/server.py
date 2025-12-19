@@ -28,6 +28,7 @@ from pydantic import ValidationError
 from pymongo import AsyncMongoClient, MongoClient
 
 from ..apis.builder import build_api
+from ..cache.local_cache import FileMissingError
 from ..data_structures import CharacterConfig, UserConfig, UserCredential
 from ..utils.hash import get_secret_hash, str_to_md5
 from ..utils.i18n import get_message
@@ -2755,11 +2756,14 @@ class FastAPIServer(Super):
                     request = JointsMetaV1Request(
                         avatar=pb_request.avatar
                     )
-                    joints_meta_bytes = await self.motion_file_api.get_joints_meta(
-                        request.avatar)
                     pb_response = motion_file_pb2.MotionFileV1Response()
                     pb_response.class_name = 'JointsMetaV1Response'
-                    pb_response.data = joints_meta_bytes
+                    try:
+                        joints_meta_bytes = await self.motion_file_api.get_joints_meta(
+                            request.avatar)
+                        pb_response.data = joints_meta_bytes
+                    except FileMissingError:
+                        pb_response.data = b''
                     pb_bytes = await loop.run_in_executor(
                         self.executor,
                         pb_response.SerializeToString
@@ -2769,11 +2773,14 @@ class FastAPIServer(Super):
                     request = RigidsMetaV1Request(
                         avatar=pb_request.avatar
                     )
-                    rigids_meta_bytes = await self.motion_file_api.get_rigids_meta(
-                        request.avatar)
                     pb_response = motion_file_pb2.MotionFileV1Response()
                     pb_response.class_name = 'RigidsMetaV1Response'
-                    pb_response.data = rigids_meta_bytes
+                    try:
+                        rigids_meta_bytes = await self.motion_file_api.get_rigids_meta(
+                            request.avatar)
+                        pb_response.data = rigids_meta_bytes
+                    except FileMissingError:
+                        pb_response.data = b''
                     pb_bytes = await loop.run_in_executor(
                         self.executor,
                         pb_response.SerializeToString

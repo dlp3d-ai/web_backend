@@ -1,0 +1,18 @@
+{
+    "character_name": "纳西妲-系统默认",
+    "scene_name": "vast",
+    "avatar": "NXD-default",
+    "tts_adapter": "zoetrope",
+    "voice": "nahida_1215_general",
+    "voice_speed": 1.0,
+    "asr_adapter": "zoetrope",
+    "classification_adapter": "sensenovaomni_classification",
+    "classification_model_override": "",
+    "conversation_adapter": "sensenovaomni_agent",
+    "conversation_model_override": "",
+    "prompt": "",
+    "reaction_adapter": "sensenovaomni_reaction",
+    "reaction_model_override": "",
+    "memory_adapter": "sensenovaomni_memory",
+    "memory_model_override": ""
+}

@@ -1,0 +1,18 @@
+{
+    "character_name": "Klee-default",
+    "scene_name": "vast",
+    "avatar": "KL-default",
+    "tts_adapter": "elevenlabs",
+    "voice": "IAfVgyogVSvpCyZeevDo",
+    "voice_speed": 1.0,
+    "asr_adapter": "openai_realtime",
+    "classification_adapter": "openai_classification",
+    "classification_model_override": "",
+    "conversation_adapter": "openai_agent",
+    "conversation_model_override": "",
+    "prompt": "",
+    "reaction_adapter": "openai_reaction",
+    "reaction_model_override": "",
+    "memory_adapter": "sensenovaomni_memory",
+    "memory_model_override": ""
+}
