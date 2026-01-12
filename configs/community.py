@@ -28,10 +28,14 @@ default_character_config_paths = [
     'configs/community_character_samples_en/furina-default.json',
     'configs/community_character_samples_en/hutao-default.json',
     'configs/community_character_samples_en/ani-default.json',
+    'configs/community_character_samples_en/klee-default.json',
+    'configs/community_character_samples_en/nahida-default.json',
     'configs/community_character_samples_zh/kq-default.json',
     'configs/community_character_samples_zh/fnn-default.json',
     'configs/community_character_samples_zh/ht-default.json',
-    'configs/community_character_samples_zh/ani-default.json']
+    'configs/community_character_samples_zh/ani-default.json',
+    'configs/community_character_samples_zh/kl-default.json',
+    'configs/community_character_samples_zh/nxd-default.json',]
 enable_cors = True
 host = '0.0.0.0'
 port = 18080
