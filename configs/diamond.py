@@ -28,10 +28,14 @@ default_character_config_paths = [
     'configs/diamond_character_samples_zh/fnn-default.json',
     'configs/diamond_character_samples_zh/ht-default.json',
     'configs/diamond_character_samples_zh/ani-default.json',
+    'configs/diamond_character_samples_zh/kl-default.json',
+    'configs/diamond_character_samples_zh/nxd-default.json',
     'configs/community_character_samples_en/keqing-default.json',
     'configs/community_character_samples_en/furina-default.json',
     'configs/community_character_samples_en/hutao-default.json',
-    'configs/community_character_samples_en/ani-default.json',]
+    'configs/community_character_samples_en/ani-default.json',
+    'configs/community_character_samples_en/klee-default.json',
+    'configs/community_character_samples_en/nahida-default.json']
 default_user_config_path = 'secrets/user_sample.json'
 aws_cognito_user_pool_id = os.environ['AWS_COGNITO_USER_POOL_ID']
 aws_cognito_client_id = os.environ['AWS_COGNITO_CLIENT_ID']
