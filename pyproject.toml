@@ -29,7 +29,8 @@ dependencies = [
     "watchtower",
     "minio",
     "pydantic==2.12.1",
-    "pydantic[email]"
+    "pydantic[email]",
+    "tqdm",
 ]
 
 [project.optional-dependencies]
