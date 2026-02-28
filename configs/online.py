@@ -54,7 +54,7 @@ motion_file_api_cfg = dict(
         mysql_port=os.getenv('MYSQL_PORT'),
         mysql_username=os.getenv('MYSQL_USER'),
         mysql_password=os.getenv('MYSQL_PASSWORD'),
-        mysql_database='motion_db',
+        mysql_database=os.getenv('MYSQL_DATABASE'),
         mysql_join_cmd_path='configs/3dac_sql_join.sql',
         logger_cfg=__logger_cfg__
     ),
@@ -64,12 +64,12 @@ motion_file_api_cfg = dict(
         mysql_port=os.getenv('MYSQL_PORT'),
         mysql_username=os.getenv('MYSQL_USER'),
         mysql_password=os.getenv('MYSQL_PASSWORD'),
-        mysql_database='motion_db',
+        mysql_database=os.getenv('MYSQL_DATABASE'),
         mysql_join_cmd_path='configs/3dac_sql_join.sql',
         endpoint=os.getenv('OSS_ENDPOINT'),
         access_key=os.getenv('OSS_ACCESS_KEY'),
         secret_key=os.getenv('OSS_SECRET_KEY'),
-        bucket_name='3dac',
+        bucket_name=os.getenv('OSS_BUCKET'),
         float_dtype=np.float32,
         logger_cfg=__logger_cfg__
     ),
@@ -87,7 +87,7 @@ motion_file_api_cfg = dict(
         endpoint=os.getenv('OSS_ENDPOINT'),
         access_key=os.getenv('OSS_ACCESS_KEY'),
         secret_key=os.getenv('OSS_SECRET_KEY'),
-        bucket_name='3dac',
+        bucket_name=os.getenv('OSS_BUCKET'),
         logger_cfg=__logger_cfg__
     ),
     mesh_reader_cfg=dict(
@@ -104,7 +104,7 @@ motion_file_api_cfg = dict(
         endpoint=os.getenv('OSS_ENDPOINT'),
         access_key=os.getenv('OSS_ACCESS_KEY'),
         secret_key=os.getenv('OSS_SECRET_KEY'),
-        bucket_name='3dac',
+        bucket_name=os.getenv('OSS_BUCKET'),
         logger_cfg=__logger_cfg__
     ),
     joints_meta_reader_cfg=dict(
@@ -121,7 +121,7 @@ motion_file_api_cfg = dict(
         endpoint=os.getenv('OSS_ENDPOINT'),
         access_key=os.getenv('OSS_ACCESS_KEY'),
         secret_key=os.getenv('OSS_SECRET_KEY'),
-        bucket_name='3dac',
+        bucket_name=os.getenv('OSS_BUCKET'),
         logger_cfg=__logger_cfg__
     ),
     rigids_meta_reader_cfg=dict(
@@ -138,7 +138,7 @@ motion_file_api_cfg = dict(
         endpoint=os.getenv('OSS_ENDPOINT'),
         access_key=os.getenv('OSS_ACCESS_KEY'),
         secret_key=os.getenv('OSS_SECRET_KEY'),
-        bucket_name='3dac',
+        bucket_name=os.getenv('OSS_BUCKET'),
         logger_cfg=__logger_cfg__
     ),
     blendshapes_meta_reader_cfg=dict(
@@ -155,7 +155,7 @@ motion_file_api_cfg = dict(
         endpoint=os.getenv('OSS_ENDPOINT'),
         access_key=os.getenv('OSS_ACCESS_KEY'),
         secret_key=os.getenv('OSS_SECRET_KEY'),
-        bucket_name='3dac',
+        bucket_name=os.getenv('OSS_BUCKET'),
         logger_cfg=__logger_cfg__
     ),
     cache_cfg=dict(

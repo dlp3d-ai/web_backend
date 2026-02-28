@@ -19,7 +19,7 @@ The system supports multiple configuration files for different environments:
 | File | Purpose | Environment |
 |------|---------|-------------|
 | `configs/community.py` | Docker deployment configuration for community | Containerized |
-| `configs/diamond.py` | Production environment configuration | Production |
+| `configs/online.py` | Production environment configuration | Production |
 
 ### Configuration File Structure
 
