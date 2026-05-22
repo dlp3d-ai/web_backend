@@ -38,9 +38,12 @@ RUN uv venv --python 3.10.12 /opt/venv && \
 # Update PATH to use virtual environment
 ENV PATH="/opt/venv/bin:$PATH"
 
-# COPY pyproject.toml and install dependencies
+# COPY pyproject.toml, export requirements, and install dependencies
 COPY pyproject.toml /opt/pyproject.toml
-RUN uv pip install --python /opt/venv/bin/python -r /opt/pyproject.toml --extra dev && \
+RUN cd /opt && \
+    uv pip install --python /opt/venv/bin/python toml-to-requirements && \
+    toml-to-req --toml-file pyproject.toml --optional-lists dev && \
+    uv pip install --python /opt/venv/bin/python -r requirements.txt && \
     uv cache clean
 
 # COPY code

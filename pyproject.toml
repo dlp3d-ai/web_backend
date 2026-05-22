@@ -28,7 +28,7 @@ dependencies = [
     "aioboto3",
     "watchtower",
     "minio",
-    "pydantic==2.12.1",
+    "pydantic==2.12.2",
     "pydantic[email]",
     "tqdm",
 ]
