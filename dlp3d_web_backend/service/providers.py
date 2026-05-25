@@ -11,9 +11,9 @@ LLM_REQUIREMENTS = dict(
     anthropic={'anthropic_api_key'},
     gemini={'gemini_api_key'},
     deepseek={'deepseek_api_key'},
-    sensenova={'sensenova_ak', 'sensenova_sk'},
+    sensenova={'sensenova_api_key'},
+    minimax={'minimax_api_key'},
     sensechat={'sensechat_ak', 'sensechat_sk'},
-    sensenovaomni={'sensenovaomni_ak', 'sensenovaomni_sk'},
 )
 
 ASR_REQUIREMENTS = dict(

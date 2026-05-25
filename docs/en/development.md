@@ -138,6 +138,8 @@ Key configuration fields:
 - **`reaction_adapter`**: Reaction service provider name
 - **`memory_adapter`**: Memory service provider name
 
+LLM adapters use the corresponding user API key fields. SenseNova uses `sensenova_api_key`, MiniMax uses `minimax_api_key`, and the deprecated SenseNova Omni LLM adapters should not be used in new character configs.
+
 Example structure:
 
 ```json
@@ -156,7 +158,7 @@ Example structure:
     "prompt": "Your custom character personality prompt here...",
     "reaction_adapter": "openai_reaction",
     "reaction_model_override": "",
-    "memory_adapter": "sensenovaomni_memory",
+    "memory_adapter": "sensenova_memory",
     "memory_model_override": ""
 }
 ```

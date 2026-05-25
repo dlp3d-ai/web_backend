@@ -137,6 +137,8 @@ restpose_reader_cfg=dict(
 - **`reaction_adapter`**：反应服务提供商名称
 - **`memory_adapter`**：记忆服务提供商名称
 
+LLM adapter 使用对应的用户 API key 字段。SenseNova 使用 `sensenova_api_key`，MiniMax 使用 `minimax_api_key`，已废弃的 SenseNova Omni LLM adapter 不应再用于新的角色配置。
+
 示例结构：
 
 ```json
@@ -155,7 +157,7 @@ restpose_reader_cfg=dict(
     "prompt": "您的自定义角色人格提示词...",
     "reaction_adapter": "openai_reaction",
     "reaction_model_override": "",
-    "memory_adapter": "sensenovaomni_memory",
+    "memory_adapter": "sensenova_memory",
     "memory_model_override": ""
 }
 ```
